@@ -24,7 +24,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refreshUsers = async () => {
     try {
       const allUsers = await dbService.getUsers();
-      setUsers(allUsers);
+      // Filter out deleted users for the local UI list
+      setUsers(allUsers.filter(u => !u.isDeleted));
     } catch (e) {
       console.error('Error refreshing users list:', e);
     }
@@ -68,7 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (username: string, passwordHash: string): Promise<{ success: boolean; error?: string }> => {
     try {
       const dbUser = await dbService.getUser(username);
-      if (!dbUser) {
+      if (!dbUser || dbUser.isDeleted) {
         return { success: false, error: 'Usuario no encontrado.' };
       }
       
@@ -92,11 +93,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const createUser = async (newUser: User): Promise<{ success: boolean; error?: string }> => {
     try {
       const existing = await dbService.getUser(newUser.username);
-      if (existing) {
+      if (existing && !existing.isDeleted) {
         return { success: false, error: 'El usuario ya existe.' };
       }
 
-      await dbService.saveUser(newUser);
+      const userWithMeta = {
+        ...newUser,
+        isDeleted: false,
+        lastUpdated: new Date().toISOString()
+      };
+      await dbService.saveUser(userWithMeta);
       await refreshUsers();
       triggerBackgroundSync();
       return { success: true };
@@ -111,7 +117,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, error: 'No puedes eliminar tu propio usuario activo.' };
       }
 
-      await dbService.deleteUser(username);
+      const dbUser = await dbService.getUser(username);
+      if (dbUser) {
+        dbUser.isDeleted = true;
+        dbUser.lastUpdated = new Date().toISOString();
+        await dbService.saveUser(dbUser);
+      }
       await refreshUsers();
       triggerBackgroundSync();
       return { success: true };

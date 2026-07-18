@@ -201,7 +201,7 @@ export const firebaseService = {
         }
       }
 
-      // 7. Merge Users
+      // 7. Merge Users based on modification timestamps
       const localUserMap = new Map<string, User>();
       localUsers.forEach(u => localUserMap.set(u.username, u));
 
@@ -225,8 +225,17 @@ export const firebaseService = {
           localUpdatesNeeded = true;
           changesCount++;
         } else if (local && remote) {
-          // Sync changes (remote wins for synchronization ease)
-          if (local.passwordHash !== remote.passwordHash || local.role !== remote.role) {
+          // Compare modification timestamps
+          const localTime = new Date(local.lastUpdated || 0).getTime();
+          const remoteTime = new Date(remote.lastUpdated || 0).getTime();
+
+          if (localTime > remoteTime) {
+            // Local is newer: upload to Firestore
+            const userRef = doc(db, 'users', username);
+            dbBatch.set(userRef, local);
+            changesCount++;
+          } else if (remoteTime > localTime) {
+            // Remote is newer: download to IndexedDB
             localUsersToPut.push(remote);
             localUpdatesNeeded = true;
             changesCount++;
@@ -241,11 +250,23 @@ export const firebaseService = {
         dbBatch.set(configRef, localConfig);
         changesCount++;
       } else {
-        // Compare and merge configuration values
-        if (localConfig.alertDays !== remoteConfig.alertDays || localConfig.soundEnabled !== remoteConfig.soundEnabled) {
+        // Compare and merge configuration values (including category alert days)
+        const configKeysChanged = 
+          localConfig.alertDays !== remoteConfig.alertDays || 
+          localConfig.soundEnabled !== remoteConfig.soundEnabled ||
+          localConfig.alertDaysCarnicos !== remoteConfig.alertDaysCarnicos ||
+          localConfig.alertDaysEmbutidos !== remoteConfig.alertDaysEmbutidos ||
+          localConfig.alertDaysLacteos !== remoteConfig.alertDaysLacteos ||
+          localConfig.alertDaysVegetales !== remoteConfig.alertDaysVegetales;
+
+        if (configKeysChanged) {
           const mergedConfig: AppConfig = {
             ...localConfig,
             alertDays: remoteConfig.alertDays,
+            alertDaysCarnicos: remoteConfig.alertDaysCarnicos ?? localConfig.alertDaysCarnicos,
+            alertDaysEmbutidos: remoteConfig.alertDaysEmbutidos ?? localConfig.alertDaysEmbutidos,
+            alertDaysLacteos: remoteConfig.alertDaysLacteos ?? localConfig.alertDaysLacteos,
+            alertDaysVegetales: remoteConfig.alertDaysVegetales ?? localConfig.alertDaysVegetales,
             soundEnabled: remoteConfig.soundEnabled,
             theme: remoteConfig.theme || localConfig.theme,
           };

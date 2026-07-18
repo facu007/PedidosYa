@@ -15,7 +15,8 @@ import {
   Info,
   ArrowUpDown,
   CheckCircle,
-  X
+  X,
+  Tag
 } from 'lucide-react';
 
 interface HistoryProps {
@@ -145,12 +146,30 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
         return <span className="text-orange-500/80 font-bold text-xs">🟠 En 2 días</span>;
       case 'vence_3_dias':
         return <span className="text-orange-500/80 font-bold text-xs">🟠 En 3 días</span>;
+      case 'proximo':
+        return <span className="text-orange-550 font-extrabold text-xs animate-pulse">🟠 Próximo a Vencer</span>;
       case 'vigente':
         return <span className="text-green-600 dark:text-green-400 font-semibold text-xs">🟢 Vigente</span>;
       case 'descartado':
         return <span className="text-slate-400 font-bold text-xs">⚫ Descartado</span>;
       default:
         return status;
+    }
+  };
+
+  const getCategoryBadge = (category?: string) => {
+    const cat = category || 'general';
+    switch (cat) {
+      case 'cárnicos':
+        return <span className="bg-red-50 text-red-700 border border-red-250 px-2 py-0.5 rounded text-xs font-bold capitalize">Cárnicos</span>;
+      case 'embutidos':
+        return <span className="bg-amber-50 text-amber-700 border border-amber-250 px-2 py-0.5 rounded text-xs font-bold capitalize">Embutidos</span>;
+      case 'lácteos':
+        return <span className="bg-blue-50 text-blue-700 border border-blue-250 px-2 py-0.5 rounded text-xs font-bold capitalize">Lácteos</span>;
+      case 'vegetales':
+        return <span className="bg-emerald-50 text-emerald-700 border border-emerald-250 px-2 py-0.5 rounded text-xs font-bold capitalize">Vegetales</span>;
+      default:
+        return <span className="bg-slate-100 text-slate-750 border border-slate-250 px-2 py-0.5 rounded text-xs font-bold capitalize">General</span>;
     }
   };
 
@@ -298,6 +317,7 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
                         <ArrowUpDown className="w-3.5 h-3.5" />
                       </div>
                     </th>
+                    <th className="p-4">Categoría</th>
                     <th className="p-4">Ubicación</th>
                     <th onClick={() => toggleSort('addedDate')} className="p-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 select-none">
                       <div className="flex items-center gap-1.5">
@@ -320,7 +340,10 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
                     <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/10">
                       <td className="p-4 font-extrabold text-base">#{p.code}</td>
                       <td className="p-4">
-                        <span className="bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-xs font-bold text-slate-600 dark:text-slate-350">
+                        {getCategoryBadge(p.category)}
+                      </td>
+                      <td className="p-4">
+                        <span className="bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-xs font-bold text-slate-650 dark:text-slate-350">
                           {p.location}
                         </span>
                       </td>
@@ -362,7 +385,10 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
               {sortedProducts.map((p) => (
                 <div key={p.id} className="p-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="font-extrabold text-base text-slate-850 dark:text-white">#{p.code}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-extrabold text-base text-slate-850 dark:text-white">#{p.code}</span>
+                      {getCategoryBadge(p.category)}
+                    </div>
                     <span className="bg-slate-100 dark:bg-slate-750 px-2.5 py-0.5 rounded text-xs font-bold text-slate-650 dark:text-slate-350">
                       {p.location}
                     </span>

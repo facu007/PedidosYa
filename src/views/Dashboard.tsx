@@ -125,7 +125,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
           <span className="text-xs text-slate-400 dark:text-slate-400 font-bold uppercase tracking-wider">Vencidos</span>
           <div className="flex items-baseline gap-2 mt-2">
             <span className="text-2xl font-black text-red-600 dark:text-red-500">{stats.vencidos}</span>
-            <span className="text-xs text-slate-400">uds</span>
+            <span className="text-xs text-slate-400">unidades</span>
           </div>
           <div className="w-full bg-red-100 dark:bg-red-500/10 h-1.5 rounded-full mt-3 overflow-hidden">
             <div className="bg-[#FF1744] h-full" style={{ width: `${stats.total > 0 ? (stats.vencidos / stats.total) * 100 : 0}%` }} />
@@ -137,7 +137,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
           <span className="text-xs text-slate-400 dark:text-slate-400 font-bold uppercase tracking-wider">Vencen Hoy</span>
           <div className="flex items-baseline gap-2 mt-2">
             <span className="text-2xl font-black text-yellow-600 dark:text-yellow-500">{stats.venceHoy}</span>
-            <span className="text-xs text-slate-400">uds</span>
+            <span className="text-xs text-slate-400">unidades</span>
           </div>
           <div className="w-full bg-yellow-100 dark:bg-yellow-500/10 h-1.5 rounded-full mt-3 overflow-hidden">
             <div className="bg-yellow-550 h-full" style={{ width: `${stats.total > 0 ? (stats.venceHoy / stats.total) * 100 : 0}%` }} />
@@ -149,7 +149,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
           <span className="text-xs text-slate-400 dark:text-slate-400 font-bold uppercase tracking-wider">Vencen 1-3 días</span>
           <div className="flex items-baseline gap-2 mt-2">
             <span className="text-2xl font-black text-orange-500 dark:text-orange-500">{stats.vence3Dias}</span>
-            <span className="text-xs text-slate-400">uds</span>
+            <span className="text-xs text-slate-400">unidades</span>
           </div>
           <div className="w-full bg-orange-100 dark:bg-orange-500/10 h-1.5 rounded-full mt-3 overflow-hidden">
             <div className="bg-orange-500 h-full" style={{ width: `${stats.total > 0 ? (stats.vence3Dias / stats.total) * 100 : 0}%` }} />
@@ -161,7 +161,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
           <span className="text-xs text-slate-400 dark:text-slate-400 font-bold uppercase tracking-wider">Vigentes</span>
           <div className="flex items-baseline gap-2 mt-2">
             <span className="text-2xl font-black text-green-600 dark:text-green-500">{stats.vigentes}</span>
-            <span className="text-xs text-slate-400">uds</span>
+            <span className="text-xs text-slate-400">unidades</span>
           </div>
           <div className="w-full bg-green-100 dark:bg-green-500/10 h-1.5 rounded-full mt-3 overflow-hidden">
             <div className="bg-green-500 h-full" style={{ width: `${stats.total > 0 ? (stats.vigentes / stats.total) * 100 : 0}%` }} />
@@ -173,7 +173,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
           <span className="text-xs text-slate-400 dark:text-slate-400 font-bold uppercase tracking-wider">Total Stock</span>
           <div className="flex items-baseline gap-2 mt-2">
             <span className="text-2xl font-black text-slate-800 dark:text-white">{stats.total}</span>
-            <span className="text-xs text-slate-400">uds</span>
+            <span className="text-xs text-slate-400">unidades</span>
           </div>
           <div className="w-full bg-slate-200 dark:bg-slate-750 h-1.5 rounded-full mt-3 overflow-hidden">
             <div className="bg-slate-500 h-full" style={{ width: '100%' }} />

@@ -5,6 +5,7 @@ export const exportProductsToExcel = (products: Product[]) => {
   // Map products to a user-friendly format for Excel
   const dataToExport = products.map((p) => ({
     'Código (Últimos 5 números)': p.code,
+    'Categoría': p.category || 'general',
     'Ubicación': p.location,
     'Fecha de Registro': new Date(p.addedDate).toLocaleDateString(),
     'Fecha de Vencimiento': new Date(p.expiryDate + 'T00:00:00').toLocaleDateString(),
@@ -58,12 +59,18 @@ export const parseProductsFromExcel = (file: File): Promise<Partial<Product>[]> 
         const parsedProducts: Partial<Product>[] = rawRows.map((row) => {
           // Find fields regardless of slight variations in header names
           const codeVal = row['Código (Últimos 5 números)'] || row['Código'] || row['codigo'] || row['Code'] || '';
+          const categoryVal = row['Categoría'] || row['categoría'] || row['categoria'] || row['Category'] || 'general';
           const locationVal = row['Ubicación'] || row['ubicacion'] || row['Location'] || '';
           let expiryVal = row['Fecha de Vencimiento'] || row['Vencimiento'] || row['vencimiento'] || row['Expiry Date'] || '';
           const obsVal = row['Observaciones'] || row['observaciones'] || row['Notes'] || '';
 
           // Format code (ensure 5 digits string)
           const code = codeVal.toString().trim().slice(-5);
+          
+          const rawCat = categoryVal.toString().trim().toLowerCase();
+          const category = ['cárnicos', 'embutidos', 'lácteos', 'vegetales', 'general'].includes(rawCat)
+            ? rawCat as Product['category']
+            : 'general';
           
           // Format expiry date
           let expiryDate = '';
@@ -87,6 +94,7 @@ export const parseProductsFromExcel = (file: File): Promise<Partial<Product>[]> 
 
           return {
             code,
+            category,
             location: locationVal.toString().trim(),
             expiryDate,
             observations: obsVal.toString().trim(),

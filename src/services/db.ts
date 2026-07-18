@@ -9,9 +9,10 @@ export interface Product {
   addedDate: string; // ISO string
   addedBy: string; // User who added it
   observations?: string;
-  status: 'vigente' | 'vence_hoy' | 'vence_manana' | 'vence_2_dias' | 'vence_3_dias' | 'vencido' | 'descartado';
+  status: 'vigente' | 'vence_hoy' | 'vence_manana' | 'vence_2_dias' | 'vence_3_dias' | 'vencido' | 'descartado' | 'proximo';
   isDiscarded: boolean;
   lastUpdated?: string;
+  category?: 'cárnicos' | 'embutidos' | 'lácteos' | 'vegetales' | 'general';
 }
 
 export interface AuditLog {
@@ -28,11 +29,17 @@ export interface User {
   username: string;
   role: 'admin' | 'empleado';
   passwordHash: string; // plain password for local simplicity
+  isDeleted?: boolean;
+  lastUpdated?: string;
 }
 
 export interface AppConfig {
   key: 'settings';
   alertDays: number;
+  alertDaysCarnicos?: number;
+  alertDaysEmbutidos?: number;
+  alertDaysLacteos?: number;
+  alertDaysVegetales?: number;
   soundEnabled: boolean;
   theme: 'light' | 'dark';
   syncEnabled: boolean;
@@ -106,6 +113,8 @@ export const seedDB = async () => {
       username: 'gfacu7@gmail.com',
       role: 'admin',
       passwordHash: 'facu2002',
+      isDeleted: false,
+      lastUpdated: new Date().toISOString()
     });
   }
 
@@ -115,6 +124,8 @@ export const seedDB = async () => {
       username: 'empleado',
       role: 'empleado',
       passwordHash: 'empleado123',
+      isDeleted: false,
+      lastUpdated: new Date().toISOString()
     });
   }
   await txUser.done;
@@ -128,6 +139,10 @@ export const seedDB = async () => {
     await configStore.put({
       key: 'settings',
       alertDays: 3,
+      alertDaysCarnicos: 2,
+      alertDaysEmbutidos: 5,
+      alertDaysLacteos: 3,
+      alertDaysVegetales: 1,
       soundEnabled: true,
       theme: 'light',
       syncEnabled: false,

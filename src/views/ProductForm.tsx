@@ -15,7 +15,8 @@ import {
   FileText, 
   MapPin, 
   CalendarDays,
-  Plus
+  Plus,
+  Tag
 } from 'lucide-react';
 
 interface ProductFormProps {
@@ -55,8 +56,9 @@ const locations = [
 
 const productSchema = z.object({
   code: z.string()
-    .length(5, 'El código debe tener exactamente 5 números.')
+    .length(5, 'El código debe tener exactamente 5 dígitos.')
     .regex(/^\d+$/, 'Solo se permiten números.'),
+  category: z.enum(['cárnicos', 'embutidos', 'lácteos', 'vegetales', 'general']),
   location: z.string().min(1, 'Seleccione una ubicación.'),
   expiryDate: z.string().min(1, 'Seleccione una fecha de vencimiento.'),
   addedDate: z.string().min(1, 'Seleccione una fecha de carga.'),
@@ -82,6 +84,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
     resolver: zodResolver(productSchema),
     defaultValues: {
       code: '',
+      category: 'general',
       location: 'Heladera 1',
       expiryDate: '',
       addedDate: new Date().toISOString().split('T')[0],
@@ -95,6 +98,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
       const prod = products.find((p) => p.id === productIdToEdit);
       if (prod) {
         setValue('code', prod.code);
+        setValue('category', prod.category || 'general');
         setValue('location', prod.location);
         setValue('expiryDate', prod.expiryDate);
         setValue('addedDate', prod.addedDate.split('T')[0]);
@@ -103,6 +107,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
     } else {
       reset({
         code: '',
+        category: 'general',
         location: 'Heladera 1',
         expiryDate: '',
         addedDate: new Date().toISOString().split('T')[0],
@@ -118,6 +123,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
       await saveProduct({
         id: productIdToEdit || crypto.randomUUID(),
         code: values.code,
+        category: values.category,
         location: values.location,
         expiryDate: values.expiryDate,
         addedDate: new Date(values.addedDate + 'T12:00:00').toISOString(),
@@ -228,9 +234,30 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
               )}
             </div>
 
+            {/* Category selector */}
+            <div>
+              <label className="block text-xs font-bold text-[#000000] dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                <Tag className="w-3.5 h-3.5 text-slate-400" />
+                <span>Categoría</span>
+              </label>
+              <select
+                {...register('category')}
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] transition-all text-sm font-semibold"
+              >
+                <option value="general">General (Otros)</option>
+                <option value="cárnicos">Cárnicos (Carnes)</option>
+                <option value="embutidos">Embutidos (Fiambres)</option>
+                <option value="lácteos">Lácteos (Lácteos/Quesos)</option>
+                <option value="vegetales">Vegetales (Verduras/Frutas)</option>
+              </select>
+              {errors.category && (
+                <p className="text-xs text-red-500 font-semibold mt-1.5">{errors.category.message}</p>
+              )}
+            </div>
+
             {/* Location selector */}
             <div>
-              <label className="block text-xs font-bold text-slate-500 dark:text-slate-450 uppercase tracking-wider mb-2 flex items-center gap-1">
+              <label className="block text-xs font-bold text-[#000000] dark:text-slate-450 uppercase tracking-wider mb-2 flex items-center gap-1">
                 <MapPin className="w-3.5 h-3.5 text-slate-400" />
                 <span>Ubicación</span>
               </label>

@@ -207,8 +207,8 @@ export const Settings: React.FC = () => {
     <div className="space-y-6">
       {/* Title */}
       <div>
-        <h2 className="text-2xl font-extrabold text-slate-850 dark:text-white">Configuración y Auditoría</h2>
-        <p className="text-xs text-slate-400 dark:text-slate-400 mt-0.5">Controla las alertas de vencimiento, copias de seguridad y auditoría de la sucursal.</p>
+        <h2 className="text-2xl font-extrabold text-black dark:text-white">Configuración y Auditoría</h2>
+        <p className="text-xs text-slate-900 dark:text-slate-400 mt-0.5 font-semibold">Controla las alertas de vencimiento, copias de seguridad y auditoría de la sucursal.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -219,33 +219,118 @@ export const Settings: React.FC = () => {
           <div className="bg-white dark:bg-slate-800 rounded-3xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
             <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-700 pb-3">
               <SettingsIcon className="w-5 h-5 text-[#FF1744]" />
-              <h3 className="font-extrabold text-sm text-slate-850 dark:text-white">Ajustes Generales</h3>
+              <h3 className="font-extrabold text-sm text-black dark:text-white">Ajustes Generales</h3>
             </div>
 
-            {/* Days warning */}
-            <div>
-              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                Días de Alerta de Vencimiento
-              </label>
-              <select
-                disabled={!isAdmin}
-                value={config.alertDays}
-                onChange={handleAlertDaysChange}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-black dark:text-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] disabled:opacity-60"
-              >
-                <option value={1}>1 día de anticipación</option>
-                <option value={2}>2 días de anticipación</option>
-                <option value={3}>3 días de anticipación</option>
-                <option value={5}>5 días de anticipación</option>
-                <option value={7}>7 días de anticipación</option>
-              </select>
+            {/* Days warning per category */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold text-[#000000] dark:text-slate-250 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 pb-1.5">Días de Alerta por Categoría</h4>
+              
+              <div>
+                <label className="block text-[10px] font-bold text-[#000000] dark:text-slate-400 uppercase tracking-wider mb-1">
+                  General / Otros
+                </label>
+                <select
+                  disabled={!isAdmin}
+                  value={config.alertDays}
+                  onChange={handleAlertDaysChange}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-black dark:text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744]"
+                >
+                  <option value={1}>1 día de anticipación</option>
+                  <option value={2}>2 días de anticipación</option>
+                  <option value={3}>3 días de anticipación</option>
+                  <option value={5}>5 días de anticipación</option>
+                  <option value={7}>7 días de anticipación</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-[#000000] dark:text-slate-400 uppercase tracking-wider mb-1">
+                  Cárnicos
+                </label>
+                <select
+                  disabled={!isAdmin}
+                  value={config.alertDaysCarnicos ?? 2}
+                  onChange={async (e) => {
+                    await saveConfig({ ...config, alertDaysCarnicos: parseInt(e.target.value, 10) });
+                    playSuccess();
+                  }}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-black dark:text-white text-xs font-semibold focus:outline-none"
+                >
+                  <option value={1}>1 día de anticipación</option>
+                  <option value={2}>2 días de anticipación</option>
+                  <option value={3}>3 días de anticipación</option>
+                  <option value={5}>5 días de anticipación</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-[#000000] dark:text-slate-400 uppercase tracking-wider mb-1">
+                  Embutidos
+                </label>
+                <select
+                  disabled={!isAdmin}
+                  value={config.alertDaysEmbutidos ?? 5}
+                  onChange={async (e) => {
+                    await saveConfig({ ...config, alertDaysEmbutidos: parseInt(e.target.value, 10) });
+                    playSuccess();
+                  }}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-black dark:text-white text-xs font-semibold focus:outline-none"
+                >
+                  <option value={2}>2 días de anticipación</option>
+                  <option value={3}>3 días de anticipación</option>
+                  <option value={5}>5 días de anticipación</option>
+                  <option value={7}>7 días de anticipación</option>
+                  <option value={10}>10 días de anticipación</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-[#000000] dark:text-slate-400 uppercase tracking-wider mb-1">
+                  Lácteos
+                </label>
+                <select
+                  disabled={!isAdmin}
+                  value={config.alertDaysLacteos ?? 3}
+                  onChange={async (e) => {
+                    await saveConfig({ ...config, alertDaysLacteos: parseInt(e.target.value, 10) });
+                    playSuccess();
+                  }}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-black dark:text-white text-xs font-semibold focus:outline-none"
+                >
+                  <option value={1}>1 día de anticipación</option>
+                  <option value={2}>2 días de anticipación</option>
+                  <option value={3}>3 días de anticipación</option>
+                  <option value={5}>5 días de anticipación</option>
+                  <option value={7}>7 días de anticipación</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-[#000000] dark:text-slate-400 uppercase tracking-wider mb-1">
+                  Vegetales
+                </label>
+                <select
+                  disabled={!isAdmin}
+                  value={config.alertDaysVegetales ?? 1}
+                  onChange={async (e) => {
+                    await saveConfig({ ...config, alertDaysVegetales: parseInt(e.target.value, 10) });
+                    playSuccess();
+                  }}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-black dark:text-white text-xs font-semibold focus:outline-none"
+                >
+                  <option value={1}>1 día de anticipación</option>
+                  <option value={2}>2 días de anticipación</option>
+                  <option value={3}>3 días de anticipación</option>
+                </select>
+              </div>
             </div>
 
             {/* Sound toggle */}
             <div className="flex items-center justify-between py-2">
               <div>
-                <p className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Sonidos de la App</p>
-                <p className="text-[10px] text-slate-400">Confirmación y alertas</p>
+                <p className="text-xs font-bold text-black dark:text-slate-300 uppercase tracking-wider">Sonidos de la App</p>
+                <p className="text-[10px] text-slate-900 dark:text-slate-400 font-semibold">Confirmación y alertas</p>
               </div>
               <button
                 disabled={!isAdmin}
@@ -273,7 +358,7 @@ export const Settings: React.FC = () => {
             <div className="bg-white dark:bg-slate-800 rounded-3xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
               <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-700 pb-3">
                 <Database className="w-5 h-5 text-[#FF1744]" />
-                <h3 className="font-extrabold text-sm text-slate-850 dark:text-white">Copia de Seguridad</h3>
+                <h3 className="font-extrabold text-sm text-black dark:text-white">Copia de Seguridad</h3>
               </div>
 
               {restoreMessage && (
@@ -321,7 +406,7 @@ export const Settings: React.FC = () => {
             <form onSubmit={handleSaveFirebase} className="bg-white dark:bg-slate-800 rounded-3xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
               <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-700 pb-3">
                 <CloudLightning className="w-5 h-5 text-[#FF1744]" />
-                <h3 className="font-extrabold text-sm text-slate-850 dark:text-white">Sincronización Nube</h3>
+                <h3 className="font-extrabold text-sm text-black dark:text-white">Sincronización Nube</h3>
               </div>
 
               {syncStatus && (
@@ -337,7 +422,7 @@ export const Settings: React.FC = () => {
 
               <div className="space-y-3 text-xs">
                 <div>
-                  <label className="block font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Firebase Project ID</label>
+                  <label className="block font-bold text-black dark:text-slate-400 uppercase tracking-wider mb-1">Firebase Project ID</label>
                   <input
                     type="text"
                     value={projectId}
@@ -348,7 +433,7 @@ export const Settings: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">API Key</label>
+                  <label className="block font-bold text-black dark:text-slate-400 uppercase tracking-wider mb-1">API Key</label>
                   <input
                     type="password"
                     value={apiKey}
@@ -366,7 +451,7 @@ export const Settings: React.FC = () => {
                     onChange={(e) => setSyncEnabled(e.target.checked)}
                     className="w-4 h-4 accent-[#FF1744] rounded border-slate-350"
                   />
-                  <label htmlFor="sync-enabled" className="font-bold text-slate-700 dark:text-slate-300">Habilitar auto-sincronización</label>
+                  <label htmlFor="sync-enabled" className="font-bold text-black dark:text-slate-300">Habilitar auto-sincronización</label>
                 </div>
               </div>
 
@@ -397,7 +482,7 @@ export const Settings: React.FC = () => {
           <div className="bg-white dark:bg-slate-800 rounded-3xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col h-[500px]">
             <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-700 pb-3 mb-4">
               <Activity className="w-5 h-5 text-[#FF1744]" />
-              <h3 className="font-extrabold text-sm text-slate-850 dark:text-white">Auditoría de Cambios</h3>
+              <h3 className="font-extrabold text-sm text-black dark:text-white">Auditoría de Cambios</h3>
             </div>
 
             <div className="flex-1 overflow-y-auto pr-1 space-y-3 divide-y divide-slate-100 dark:divide-slate-700">
@@ -406,7 +491,7 @@ export const Settings: React.FC = () => {
                   <div key={log.id} className="pt-3 first:pt-0 flex flex-col sm:flex-row justify-between gap-2 text-xs font-semibold">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-400">
+                        <span className="font-bold text-slate-900 dark:text-slate-400">
                           {new Date(log.timestamp).toLocaleString()}
                         </span>
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
@@ -421,14 +506,14 @@ export const Settings: React.FC = () => {
                         </span>
                       </div>
                       
-                      <p className="text-slate-800 dark:text-slate-250 mt-1">
-                        Producto: <span className="font-extrabold text-slate-900 dark:text-white">#{log.productCode}</span> - {log.details}
+                      <p className="text-black dark:text-slate-250 mt-1">
+                        Producto: <span className="font-extrabold text-black dark:text-white">#{log.productCode}</span> - {log.details}
                       </p>
                     </div>
 
-                    <div className="sm:text-right text-slate-450 flex items-center gap-1 self-start sm:self-center shrink-0">
+                    <div className="sm:text-right text-slate-900 dark:text-slate-400 flex items-center gap-1 self-start sm:self-center shrink-0">
                       <span>Realizado por:</span>
-                      <span className="bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-300 px-1.5 py-0.5 rounded font-bold">
+                      <span className="bg-slate-100 dark:bg-slate-700 text-black dark:text-slate-300 px-1.5 py-0.5 rounded font-bold">
                         {log.user}
                       </span>
                     </div>
@@ -449,7 +534,7 @@ export const Settings: React.FC = () => {
             <div className="bg-white dark:bg-slate-800 rounded-3xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
               <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-700 pb-3">
                 <Users className="w-5 h-5 text-[#FF1744]" />
-                <h3 className="font-extrabold text-sm text-slate-850 dark:text-white">Gestión de Usuarios</h3>
+                <h3 className="font-extrabold text-sm text-black dark:text-white">Gestión de Usuarios</h3>
               </div>
 
               {userError && (
@@ -466,19 +551,18 @@ export const Settings: React.FC = () => {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* User List */}
+                    {/* User List */}
                 <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Usuarios Registrados</h4>
+                  <h4 className="text-xs font-bold text-black dark:text-slate-400 uppercase tracking-wider">Usuarios Registrados</h4>
                   <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
                     {users.map((u) => (
                       <div key={u.username} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-750 rounded-xl border border-slate-200 dark:border-slate-700">
                         <div>
-                          <p className="font-bold text-sm text-slate-850 dark:text-white">{u.username}</p>
+                          <p className="font-bold text-sm text-black dark:text-white">{u.username}</p>
                           <span className={`text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded ${
                             u.role === 'admin' 
                               ? 'bg-red-50 text-[#FF1744] dark:bg-red-500/10 dark:text-red-400' 
-                              : 'bg-slate-100 text-slate-650 dark:bg-slate-700 dark:text-slate-300'
+                              : 'bg-slate-100 text-black dark:bg-slate-700 dark:text-slate-300'
                           }`}>
                             {u.role}
                           </span>
@@ -486,7 +570,7 @@ export const Settings: React.FC = () => {
                         {u.username !== currentUser?.username && u.username !== 'gfacu7@gmail.com' && (
                           <button
                             onClick={() => handleDeleteUser(u.username)}
-                            className="p-2 text-slate-450 hover:text-[#FF1744] hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all"
+                            className="p-2 text-black hover:text-[#FF1744] hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all"
                             title="Eliminar usuario"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -499,11 +583,11 @@ export const Settings: React.FC = () => {
 
                 {/* Add User Form */}
                 <form onSubmit={handleCreateUser} className="space-y-3">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Agregar Nuevo Usuario</h4>
+                  <h4 className="text-xs font-bold text-black dark:text-slate-400 uppercase tracking-wider">Agregar Nuevo Usuario</h4>
                   
                   <div className="text-xs space-y-2">
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Nombre de Usuario</label>
+                      <label className="block text-[10px] font-bold text-[#000000] dark:text-slate-400 uppercase mb-1">Nombre de Usuario</label>
                       <input
                         type="text"
                         required
@@ -515,7 +599,7 @@ export const Settings: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-450 uppercase mb-1">Contraseña</label>
+                      <label className="block text-[10px] font-bold text-[#000000] dark:text-slate-450 uppercase mb-1">Contraseña</label>
                       <div className="relative">
                         <input
                           type={showAddUserPassword ? 'text' : 'password'}
@@ -528,7 +612,7 @@ export const Settings: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => setShowAddUserPassword(!showAddUserPassword)}
-                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-650 dark:hover:text-slate-200 cursor-pointer"
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-900 hover:text-slate-650 dark:hover:text-slate-200 cursor-pointer"
                           aria-label={showAddUserPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                         >
                           {showAddUserPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -537,7 +621,7 @@ export const Settings: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Rol</label>
+                      <label className="block text-[10px] font-bold text-[#000000] dark:text-slate-400 uppercase mb-1">Rol</label>
                       <select
                         value={newRole}
                         onChange={(e) => setNewRole(e.target.value as 'admin' | 'empleado')}

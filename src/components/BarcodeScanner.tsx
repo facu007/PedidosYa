@@ -94,9 +94,16 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, o
     // Reset scanner first
     codeReaderRef.current.reset();
 
-    // Start decoding from selected device
-    codeReaderRef.current.decodeFromVideoDevice(
-      selectedDevice,
+    // Start decoding from constraints to request HD resolution
+    codeReaderRef.current.decodeFromConstraints(
+      {
+        video: {
+          deviceId: selectedDevice ? { ideal: selectedDevice } : undefined,
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: 'environment'
+        }
+      },
       videoRef.current,
       (result, _err) => {
         if (result) {
@@ -132,6 +139,45 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, o
     setSelectedDevice(devices[nextIndex].deviceId);
   };
 
+  const handleVideoPlay = async () => {
+    try {
+      if (!videoRef.current) return;
+      const stream = videoRef.current.srcObject as MediaStream;
+      if (!stream) return;
+      const tracks = stream.getVideoTracks();
+      if (tracks.length === 0) return;
+
+      const track = tracks[0];
+      const capabilities = (track.getCapabilities && typeof track.getCapabilities === 'function') 
+        ? track.getCapabilities() 
+        : {};
+
+      const advancedConstraints: any = {};
+      
+      // Try to apply continuous autofocus if supported
+      if ((capabilities as any).focusMode && (capabilities as any).focusMode.includes('continuous')) {
+        advancedConstraints.focusMode = 'continuous';
+      }
+      
+      // Try to zoom in slightly (e.g. 1.3x) to help focus on small 1D barcodes from a distance
+      if ((capabilities as any).zoom) {
+        const minZoom = (capabilities as any).zoom.min || 1;
+        const maxZoom = (capabilities as any).zoom.max || 1;
+        const targetZoom = Math.min(1.3, maxZoom);
+        if (targetZoom > minZoom) {
+          advancedConstraints.zoom = targetZoom;
+        }
+      }
+
+      if (Object.keys(advancedConstraints).length > 0) {
+        console.log('Applying advanced camera constraints:', advancedConstraints);
+        await track.applyConstraints({ advanced: [advancedConstraints] });
+      }
+    } catch (err) {
+      console.warn('Could not apply advanced camera focus constraints:', err);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-slate-900/90 z-50 flex flex-col justify-between p-4 md:p-6 backdrop-blur-sm">
       {/* Top bar */}
@@ -154,6 +200,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, o
         {/* Video feed */}
         <video
           ref={videoRef}
+          onPlay={handleVideoPlay}
           className="w-full h-full object-contain block"
           muted
           playsInline

@@ -44,7 +44,11 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 // Helper to calculate product status
-export const calculateProductStatus = (expiryDateStr: string, _alertDays: number = 3): Product['status'] => {
+export const calculateProductStatus = (
+  expiryDateStr: string,
+  category?: string,
+  config?: AppConfig
+): Product['status'] => {
   const today = startOfDay(new Date());
   const expiry = startOfDay(new Date(expiryDateStr + 'T00:00:00'));
   const diff = differenceInCalendarDays(expiry, today);
@@ -54,6 +58,18 @@ export const calculateProductStatus = (expiryDateStr: string, _alertDays: number
   if (diff === 1) return 'vence_manana';
   if (diff === 2) return 'vence_2_dias';
   if (diff === 3) return 'vence_3_dias';
+
+  // Determine alert threshold based on category
+  let alertDays = config?.alertDays ?? 3;
+  if (category === 'cárnicos') alertDays = config?.alertDaysCarnicos ?? 2;
+  else if (category === 'embutidos') alertDays = config?.alertDaysEmbutidos ?? 5;
+  else if (category === 'lácteos') alertDays = config?.alertDaysLacteos ?? 3;
+  else if (category === 'vegetales') alertDays = config?.alertDaysVegetales ?? 1;
+
+  if (diff <= alertDays) {
+    return 'proximo';
+  }
+
   return 'vigente';
 };
 
@@ -93,7 +109,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
         return {
           ...p,
-          status: calculateProductStatus(p.expiryDate, dbConfig.alertDays),
+          status: calculateProductStatus(p.expiryDate, p.category, dbConfig),
         };
       });
 
@@ -142,7 +158,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const saveProduct = async (productData: Omit<Product, 'status' | 'isDiscarded' | 'addedBy'> & { addedDate?: string }) => {
     const operator = user?.username || 'sistema';
-    const status = calculateProductStatus(productData.expiryDate, config.alertDays);
+    const status = calculateProductStatus(productData.expiryDate, productData.category, config);
     
     const existingProduct = products.find(p => p.id === productData.id);
 
@@ -195,7 +211,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           observations: p.observations || '',
           addedBy: operator,
           addedDate: new Date().toISOString(),
-          status: calculateProductStatus(p.expiryDate, config.alertDays),
+          status: calculateProductStatus(p.expiryDate, p.category, config),
           isDiscarded: false,
           lastUpdated: new Date().toISOString(),
         };

@@ -24,6 +24,14 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, o
     const startScanner = async () => {
       try {
         setLoading(true);
+
+        // Check for secure context and mediaDevices support
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          setError('El escáner requiere una conexión segura (HTTPS) o permisos de cámara habilitados en el navegador.');
+          setLoading(false);
+          return;
+        }
+
         const videoInputDevices = await codeReader.listVideoInputDevices();
         setDevices(videoInputDevices);
 
@@ -149,6 +157,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, o
           className={`w-full h-full object-cover ${loading || error ? 'hidden' : 'block'}`}
           muted
           playsInline
+          autoPlay
         />
 
         {/* Scanning Overlay (Target Area) */}

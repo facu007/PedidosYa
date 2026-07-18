@@ -28,6 +28,22 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, 
   const [deferredPrompt, setDeferredPrompt] = React.useState<any>(null);
   const [showIOSPrompt, setShowIOSPrompt] = React.useState(false);
   const [isStandalone, setIsStandalone] = React.useState(false);
+  const [updateAvailable, setUpdateAvailable] = React.useState(false);
+  const [updateFn, setUpdateFn] = React.useState<(() => void) | null>(null);
+
+  // Listen for PWA updates
+  React.useEffect(() => {
+    const handleUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail && customEvent.detail.updateSW) {
+        setUpdateAvailable(true);
+        setUpdateFn(() => () => customEvent.detail.updateSW(true));
+      }
+    };
+
+    window.addEventListener('pwa-update-available', handleUpdate);
+    return () => window.removeEventListener('pwa-update-available', handleUpdate);
+  }, []);
 
   const toggleTheme = () => {
     const newTheme = config.theme === 'light' ? 'dark' : 'light';
@@ -329,6 +345,24 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, 
               Entendido
             </button>
           </div>
+        </div>
+      )}
+
+      {/* PWA Update Banner */}
+      {updateAvailable && (
+        <div className="fixed bottom-20 left-4 right-4 md:bottom-6 md:right-6 md:left-auto bg-slate-900 dark:bg-slate-800 text-white p-4 rounded-2xl shadow-2xl border border-slate-700 md:w-80 flex items-center justify-between gap-3 animate-bounce-short z-50">
+          <div>
+            <p className="font-bold text-sm">Actualización disponible</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">Nueva versión del sistema lista para usar.</p>
+          </div>
+          <button
+            onClick={() => {
+              if (updateFn) updateFn();
+            }}
+            className="bg-[#FF1744] hover:bg-red-650 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-all cursor-pointer shadow-md shrink-0 active:scale-95"
+          >
+            Actualizar
+          </button>
         </div>
       )}
     </div>

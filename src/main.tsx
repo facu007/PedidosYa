@@ -10,9 +10,8 @@ import { registerSW } from 'virtual:pwa-register';
 
 const updateSW = registerSW({
   onNeedRefresh() {
-    if (window.confirm('Nueva versión de la app disponible. ¿Deseas actualizar ahora?')) {
-      updateSW(true);
-    }
+    // Dispatch a custom event to notify React components
+    window.dispatchEvent(new CustomEvent('pwa-update-available', { detail: { updateSW } }));
   },
   onOfflineReady() {
     console.log('Control de Vencimientos listo para funcionar offline.');

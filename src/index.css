@@ -61,3 +61,9 @@
   animation: pingSlow 1.2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
 }
 
+/* Force form controls to have black text and white background in all themes */
+input, select, textarea, option {
+  color: #000000 !important;
+  background-color: #ffffff !important;
+}
+

@@ -33,8 +33,8 @@ export const Statistics: React.FC = () => {
   const locationCounts: Record<string, number> = {};
   // Pre-fill locations to show empty ones too
   const knownLocations = [
-    'Heladera 1', 'Heladera 2', 'Heladera 3', 'Heladera 4',
-    'Freezer 1', 'Freezer 2', 'Freezer 3'
+    'Heladera 1', 'Heladera 2', 'Heladera 3', 'Heladera 4', 'Heladera 5', 'Heladera 6', 'Heladera 7', 'Heladera 8', 'Heladera 9', 'Heladera 10', 'Heladera 11', 'Heladera 12', 'Heladera 13', 'Heladera 14', 'Heladera 15', 'Heladera 16', 'Heladera 17', 'Heladera 18',
+    'Freezer 1', 'Freezer 2', 'Freezer 3', 'Freezer 4', 'Freezer 5', 'Freezer 6', 'Freezer 7', 'Freezer 8'
   ];
   knownLocations.forEach(loc => { locationCounts[loc] = 0; });
   activeProducts.forEach((p) => {

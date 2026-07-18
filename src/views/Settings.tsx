@@ -18,7 +18,9 @@ import {
   X,
   Users,
   UserPlus,
-  Trash2
+  Trash2,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 export const Settings: React.FC = () => {
@@ -41,6 +43,7 @@ export const Settings: React.FC = () => {
   const [newRole, setNewRole] = useState<'admin' | 'empleado'>('empleado');
   const [userError, setUserError] = useState<string | null>(null);
   const [userSuccess, setUserSuccess] = useState<string | null>(null);
+  const [showAddUserPassword, setShowAddUserPassword] = useState(false);
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -480,10 +483,10 @@ export const Settings: React.FC = () => {
                             {u.role}
                           </span>
                         </div>
-                        {u.username !== currentUser?.username && u.username !== 'admin' && (
+                        {u.username !== currentUser?.username && u.username !== 'gfacu7@gmail.com' && (
                           <button
                             onClick={() => handleDeleteUser(u.username)}
-                            className="p-2 text-slate-400 hover:text-[#FF1744] hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all"
+                            className="p-2 text-slate-450 hover:text-[#FF1744] hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all"
                             title="Eliminar usuario"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -512,15 +515,25 @@ export const Settings: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Contraseña</label>
-                      <input
-                        type="password"
-                        required
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="••••••••"
-                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-slate-900 dark:text-white font-semibold rounded-lg"
-                      />
+                      <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-450 uppercase mb-1">Contraseña</label>
+                      <div className="relative">
+                        <input
+                          type={showAddUserPassword ? 'text' : 'password'}
+                          required
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className="w-full pl-3 pr-10 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-slate-900 dark:text-white font-semibold rounded-lg"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowAddUserPassword(!showAddUserPassword)}
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-650 dark:hover:text-slate-200 cursor-pointer"
+                          aria-label={showAddUserPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                        >
+                          {showAddUserPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
 
                     <div>

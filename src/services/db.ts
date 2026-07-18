@@ -99,14 +99,18 @@ export const seedDB = async () => {
   // Seed default users
   const txUser = db.transaction('users', 'readwrite');
   const userStore = txUser.store;
-  const existingUsers = await userStore.getAll();
   
-  if (existingUsers.length === 0) {
+  const defaultAdmin = await userStore.get('gfacu7@gmail.com');
+  if (!defaultAdmin) {
     await userStore.put({
-      username: 'admin',
+      username: 'gfacu7@gmail.com',
       role: 'admin',
-      passwordHash: 'admin123',
+      passwordHash: 'facu2002',
     });
+  }
+
+  const defaultEmpleado = await userStore.get('empleado');
+  if (!defaultEmpleado) {
     await userStore.put({
       username: 'empleado',
       role: 'empleado',

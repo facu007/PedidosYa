@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { LogIn, Key, User, HelpCircle, UserPlus, ShieldAlert } from 'lucide-react';
+import { LogIn, Key, User, HelpCircle, UserPlus, Eye, EyeOff } from 'lucide-react';
 
 export const Login: React.FC = () => {
   const { login, createUser } = useAuth();
@@ -9,7 +9,7 @@ export const Login: React.FC = () => {
   // Form states
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<'admin' | 'empleado'>('empleado');
+  const [showPassword, setShowPassword] = useState(false);
   
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -33,7 +33,8 @@ export const Login: React.FC = () => {
         setError(res.error || 'Error al iniciar sesión.');
       }
     } else {
-      const res = await createUser({ username, role, passwordHash: password });
+      // Public registrations default strictly to "empleado" role
+      const res = await createUser({ username, role: 'empleado', passwordHash: password });
       if (res.success) {
         setSuccess('¡Usuario creado correctamente! Iniciando sesión...');
         // Auto-login
@@ -54,8 +55,9 @@ export const Login: React.FC = () => {
     setError('');
     setSuccess('');
     setLoading(true);
-    const pass = userType === 'admin' ? 'admin123' : 'empleado123';
-    const res = await login(userType, pass);
+    const userVal = userType === 'admin' ? 'gfacu7@gmail.com' : 'empleado';
+    const passVal = userType === 'admin' ? 'facu2002' : 'empleado123';
+    const res = await login(userVal, passVal);
     setLoading(false);
     if (!res.success) {
       setError(res.error || 'Error al iniciar sesión.');
@@ -140,13 +142,13 @@ export const Login: React.FC = () => {
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Ingrese su usuario"
+                placeholder="Ingrese su usuario o email"
                 className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] transition-all text-sm font-medium"
               />
             </div>
           </div>
 
-          {/* Password Input */}
+          {/* Password Input with show/hide password toggle */}
           <div>
             <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
               Contraseña
@@ -156,37 +158,23 @@ export const Login: React.FC = () => {
                 <Key className="w-5 h-5" />
               </span>
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] transition-all text-sm font-medium"
+                className="w-full pl-11 pr-12 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] transition-all text-sm font-medium"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
             </div>
           </div>
-
-          {/* Role selection - Register Only */}
-          {activeTab === 'register' && (
-            <div>
-              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                Rol del Usuario
-              </label>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400">
-                  <ShieldAlert className="w-5 h-5" />
-                </span>
-                <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value as 'admin' | 'empleado')}
-                  className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] transition-all text-sm font-medium"
-                >
-                  <option value="empleado">Empleado (Solo Lectura/Operación)</option>
-                  <option value="admin">Administrador (Acceso Total)</option>
-                </select>
-              </div>
-            </div>
-          )}
 
           {/* Submit Button */}
           <button
@@ -219,13 +207,13 @@ export const Login: React.FC = () => {
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={() => handleQuickLogin('admin')}
-            className="py-2.5 px-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-750 dark:text-slate-300 font-semibold text-xs hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
+            className="py-2.5 px-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-750 dark:text-slate-300 font-semibold text-xs hover:bg-slate-50 dark:hover:bg-slate-700 transition-all cursor-pointer"
           >
             🔑 Entrar como Admin
           </button>
           <button
             onClick={() => handleQuickLogin('empleado')}
-            className="py-2.5 px-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-750 dark:text-slate-300 font-semibold text-xs hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
+            className="py-2.5 px-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-750 dark:text-slate-300 font-semibold text-xs hover:bg-slate-50 dark:hover:bg-slate-700 transition-all cursor-pointer"
           >
             👤 Entrar como Empleado
           </button>
@@ -237,8 +225,8 @@ export const Login: React.FC = () => {
           <div>
             <span className="font-bold">Usuarios demo:</span>
             <ul className="list-disc pl-4 mt-1 space-y-0.5 font-medium">
-              <li>Admin: <code className="text-slate-800 dark:text-slate-300 bg-slate-200/50 dark:bg-slate-700 px-1 rounded">admin</code> / <code className="text-slate-800 dark:text-slate-300 bg-slate-200/50 dark:bg-slate-700 px-1 rounded">admin123</code></li>
-              <li>Empleado: <code className="text-slate-800 dark:text-slate-300 bg-slate-200/50 dark:bg-slate-700 px-1 rounded">empleado</code> / <code className="text-slate-800 dark:text-slate-300 bg-slate-200/50 dark:bg-slate-700 px-1 rounded">empleado123</code></li>
+              <li>Admin: <code className="text-slate-800 dark:text-slate-350 bg-slate-200/50 dark:bg-slate-700 px-1 rounded">gfacu7@gmail.com</code> / <code className="text-slate-800 dark:text-slate-350 bg-slate-200/50 dark:bg-slate-700 px-1 rounded">facu2002</code></li>
+              <li>Empleado: <code className="text-slate-800 dark:text-slate-350 bg-slate-200/50 dark:bg-slate-700 px-1 rounded">empleado</code> / <code className="text-slate-800 dark:text-slate-350 bg-slate-200/50 dark:bg-slate-700 px-1 rounded">empleado123</code></li>
             </ul>
           </div>
         </div>

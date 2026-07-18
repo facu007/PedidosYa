@@ -11,7 +11,7 @@ interface AppContextType {
   config: AppConfig;
   loading: boolean;
   refreshData: (showSpinner?: boolean) => Promise<void>;
-  saveProduct: (productData: Omit<Product, 'addedDate' | 'status' | 'isDiscarded' | 'addedBy'>) => Promise<void>;
+  saveProduct: (productData: Omit<Product, 'status' | 'isDiscarded' | 'addedBy'> & { addedDate?: string }) => Promise<void>;
   discardProduct: (id: string) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
   saveConfig: (newConfig: AppConfig) => Promise<void>;
@@ -140,7 +140,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     initLoad();
   }, []);
 
-  const saveProduct = async (productData: Omit<Product, 'addedDate' | 'status' | 'isDiscarded' | 'addedBy'>) => {
+  const saveProduct = async (productData: Omit<Product, 'status' | 'isDiscarded' | 'addedBy'> & { addedDate?: string }) => {
     const operator = user?.username || 'sistema';
     const status = calculateProductStatus(productData.expiryDate, config.alertDays);
     
@@ -149,7 +149,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const fullProduct: Product = {
       ...productData,
       addedBy: existingProduct ? existingProduct.addedBy : operator,
-      addedDate: existingProduct ? existingProduct.addedDate : new Date().toISOString(),
+      addedDate: productData.addedDate || (existingProduct ? existingProduct.addedDate : new Date().toISOString()),
       status,
       isDiscarded: false,
       lastUpdated: new Date().toISOString(),

@@ -89,7 +89,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, o
 
   // Handle active device changes
   useEffect(() => {
-    if (!selectedDevice || !codeReaderRef.current || !videoRef.current) return;
+    if (loading || !selectedDevice || !codeReaderRef.current || !videoRef.current) return;
 
     // Reset scanner first
     codeReaderRef.current.reset();
@@ -123,7 +123,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, o
         codeReaderRef.current.reset();
       }
     };
-  }, [selectedDevice]);
+  }, [selectedDevice, loading]);
 
   const switchCamera = () => {
     if (devices.length <= 1) return;
@@ -151,34 +151,34 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, o
 
       {/* Video Scanner Area */}
       <div className="relative w-full max-w-md aspect-[3/4] mx-auto bg-slate-950 rounded-2xl overflow-hidden shadow-2xl border border-slate-800 flex items-center justify-center my-4">
+        {/* Video feed */}
+        <video
+          ref={videoRef}
+          className="w-full h-full object-contain block"
+          muted
+          playsInline
+          autoPlay
+        />
+
         {loading && (
-          <div className="text-center text-slate-400">
+          <div className="absolute inset-0 bg-slate-950 flex flex-col items-center justify-center text-center text-slate-400 z-10">
             <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-2 text-[#FF1744]" />
             <p className="text-sm">Iniciando cámara...</p>
           </div>
         )}
 
         {error && (
-          <div className="text-center p-6 text-slate-400 max-w-xs">
+          <div className="absolute inset-0 bg-slate-950 flex flex-col items-center justify-center text-center p-6 text-slate-400 z-10">
             <AlertTriangle className="w-12 h-12 mx-auto mb-2 text-[#FF1744]" />
             <p className="text-sm mb-4 font-medium">{error}</p>
             <button
               onClick={onClose}
-              className="px-4 py-2 bg-[#FF1744] text-white rounded-lg text-xs font-semibold hover:bg-red-600 transition-colors"
+              className="px-4 py-2 bg-[#FF1744] text-white rounded-lg text-xs font-semibold hover:bg-red-600 transition-colors cursor-pointer"
             >
               Cargar Manualmente
             </button>
           </div>
         )}
-
-        {/* Video feed */}
-        <video
-          ref={videoRef}
-          className={`w-full h-full object-contain ${loading || error ? 'hidden' : 'block'}`}
-          muted
-          playsInline
-          autoPlay
-        />
 
         {/* Scanning Overlay (Target Area) */}
         {!loading && !error && (

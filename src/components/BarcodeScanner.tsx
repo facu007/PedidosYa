@@ -45,6 +45,10 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, o
           return;
         }
 
+        // Force browser permission prompt first to populate devices
+        const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        tempStream.getTracks().forEach((track) => track.stop());
+
         const videoInputDevices = await codeReader.listVideoInputDevices();
         setDevices(videoInputDevices);
 
@@ -109,7 +113,10 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, o
         }
         // We ignore err here since the reader polls and throws errors continuously while looking for barcodes
       }
-    );
+    ).catch(err => {
+      console.error('Error starting camera decode loop:', err);
+      setError('No se pudo inicializar la cámara. Por favor asegúrate de que no esté en uso por otra aplicación.');
+    });
 
     return () => {
       if (codeReaderRef.current) {

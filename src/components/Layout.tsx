@@ -9,7 +9,9 @@ import {
   Settings, 
   LogOut, 
   Sun, 
-  Moon
+  Moon,
+  Download,
+  X
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -22,6 +24,10 @@ interface LayoutProps {
 export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, onOpenAddModal }) => {
   const { user, logout } = useAuth();
   const { config, saveConfig } = useApp();
+  
+  const [deferredPrompt, setDeferredPrompt] = React.useState<any>(null);
+  const [showIOSPrompt, setShowIOSPrompt] = React.useState(false);
+  const [isStandalone, setIsStandalone] = React.useState(false);
 
   const toggleTheme = () => {
     const newTheme = config.theme === 'light' ? 'dark' : 'light';
@@ -41,6 +47,41 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, 
       document.documentElement.classList.remove('dark');
     }
   }, [config.theme]);
+
+  // Handle PWA installation prompts
+  React.useEffect(() => {
+    const checkStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
+    setIsStandalone(!!checkStandalone);
+
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setDeferredPrompt(null);
+      }
+    } else {
+      // Check if iOS
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+      if (isIOS) {
+        setShowIOSPrompt(true);
+      } else {
+        alert('Para descargar la aplicación, abre el menú de opciones de tu navegador (los tres puntos en Chrome/Edge o ajustes) y presiona "Añadir a la pantalla de inicio" o "Instalar aplicación".');
+      }
+    }
+  };
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -76,7 +117,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, 
               {user.username.substring(0, 2).toUpperCase()}
             </div>
             <div className="overflow-hidden">
-              <p className="font-bold text-sm text-slate-800 dark:text-slate-200 truncate">{user.username}</p>
+              <p className="font-bold text-sm text-slate-850 dark:text-slate-200 truncate">{user.username}</p>
               <p className="text-xs text-slate-500 dark:text-slate-400 capitalize">{user.role}</p>
             </div>
           </div>
@@ -91,7 +132,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, 
                 <button
                   key={item.id}
                   onClick={onOpenAddModal}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-[#FF1744] text-white hover:bg-red-600 transition-all font-semibold shadow-md shadow-red-200 dark:shadow-none my-3"
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-[#FF1744] text-white hover:bg-red-600 transition-all font-semibold shadow-md shadow-red-200 dark:shadow-none my-3 cursor-pointer"
                 >
                   <Plus className="w-5 h-5" />
                   <span>Nuevo Producto</span>
@@ -104,10 +145,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, 
               <button
                 key={item.id}
                 onClick={() => setView(item.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer ${
                   isActive
                     ? 'bg-red-50 text-[#FF1744] font-bold dark:bg-red-500/10 dark:text-red-400'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-450 dark:hover:bg-slate-700 dark:hover:text-white'
+                    : 'text-slate-650 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-455 dark:hover:bg-slate-700 dark:hover:text-white'
                 }`}
               >
                 <Icon className="w-5 h-5" />
@@ -119,12 +160,23 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, 
 
         {/* Footer Actions */}
         <div className="p-4 border-t border-slate-100 dark:border-slate-700 flex flex-col gap-2">
+          {/* Download/Install PWA button */}
+          {!isStandalone && (
+            <button
+              onClick={handleInstallClick}
+              className="flex items-center gap-2 w-full px-4 py-2.5 rounded-xl text-slate-650 dark:text-slate-350 hover:bg-[#FF1744]/10 hover:text-[#FF1744] dark:hover:bg-[#FF1744]/20 transition-all text-xs font-bold border border-dashed border-[#FF1744]/30 cursor-pointer"
+            >
+              <Download className="w-4 h-4 text-[#FF1744]" />
+              <span>Instalar Aplicación</span>
+            </button>
+          )}
+
           {/* Theme toggle */}
           <button
             onClick={toggleTheme}
-            className="flex items-center justify-between w-full px-4 py-2.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all text-sm"
+            className="flex items-center justify-between w-full px-4 py-2.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all text-sm cursor-pointer"
           >
-            <span className="flex items-center gap-2">
+            <span className="flex items-center gap-2 font-medium">
               {config.theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
               <span>Modo {config.theme === 'light' ? 'Oscuro' : 'Claro'}</span>
             </span>
@@ -138,7 +190,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, 
           {/* Logout */}
           <button
             onClick={logout}
-            className="flex items-center gap-2 w-full px-4 py-2.5 rounded-lg text-slate-600 dark:text-slate-350 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10 dark:hover:text-red-400 transition-all text-sm font-medium"
+            className="flex items-center gap-2 w-full px-4 py-2.5 rounded-lg text-slate-600 dark:text-slate-350 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10 dark:hover:text-red-400 transition-all text-sm font-medium cursor-pointer"
           >
             <LogOut className="w-4 h-4" />
             <span>Cerrar Sesión</span>
@@ -161,7 +213,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, 
           {/* Quick theme toggle */}
           <button
             onClick={toggleTheme}
-            className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-350 transition-all"
+            className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-350 transition-all cursor-pointer"
             aria-label="Toggle Theme"
           >
             {config.theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
@@ -170,13 +222,34 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, 
           {/* Logout button */}
           <button
             onClick={logout}
-            className="p-2 rounded-full hover:bg-red-50 text-slate-600 dark:text-slate-350 dark:hover:bg-red-500/10 dark:hover:text-red-400 transition-all"
+            className="p-2 rounded-full hover:bg-red-50 text-slate-650 dark:text-slate-355 dark:hover:bg-red-500/10 dark:hover:text-red-400 transition-all cursor-pointer"
             aria-label="Cerrar sesión"
           >
             <LogOut className="w-5 h-5" />
           </button>
         </div>
       </header>
+
+      {/* Mobile PWA Install Banner */}
+      {!isStandalone && (
+        <div className="md:hidden bg-gradient-to-r from-[#FF1744] to-[#E30032] text-white px-4 py-3 flex items-center justify-between shadow-md z-10 animate-fade-in">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 bg-white/10 rounded-lg shrink-0">
+              <Download className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="font-black text-xs leading-tight">Descargar App</p>
+              <p className="text-[9px] opacity-90 font-medium text-slate-100">Lleva el control de vencimientos en tu pantalla de inicio</p>
+            </div>
+          </div>
+          <button
+            onClick={handleInstallClick}
+            className="bg-white text-[#FF1744] px-3.5 py-1.5 rounded-xl font-bold text-[10px] hover:bg-slate-100 transition-all cursor-pointer shadow-sm active:scale-95 shrink-0"
+          >
+            Instalar
+          </button>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-h-0 overflow-y-auto pb-24 md:pb-6 p-4 md:p-8">
@@ -194,7 +267,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, 
               <button
                 key={item.id}
                 onClick={onOpenAddModal}
-                className="w-14 h-14 rounded-full bg-[#FF1744] text-white flex items-center justify-center shadow-md shadow-red-200 dark:shadow-none -mt-5 border-4 border-slate-50 dark:border-slate-900 focus:outline-none hover:scale-105 active:scale-95 transition-all"
+                className="w-14 h-14 rounded-full bg-[#FF1744] text-white flex items-center justify-center shadow-md shadow-red-200 dark:shadow-none -mt-5 border-4 border-slate-50 dark:border-slate-900 focus:outline-none hover:scale-105 active:scale-95 transition-all cursor-pointer"
                 aria-label="Agregar producto"
               >
                 <Plus className="w-7 h-7 stroke-[3]" />
@@ -207,10 +280,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, 
             <button
               key={item.id}
               onClick={() => setView(item.id)}
-              className={`flex flex-col items-center gap-0.5 py-1 px-3 rounded-lg focus:outline-none transition-all ${
+              className={`flex flex-col items-center gap-0.5 py-1 px-3 rounded-lg focus:outline-none transition-all cursor-pointer ${
                 isActive 
                   ? 'text-[#FF1744] font-bold' 
-                  : 'text-slate-400 dark:text-slate-400'
+                  : 'text-slate-400 dark:text-slate-450'
               }`}
             >
               <Icon className="w-5 h-5" />
@@ -219,6 +292,51 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, 
           );
         })}
       </nav>
+
+      {/* iOS Install Prompt Dialog */}
+      {showIOSPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 max-w-sm w-full border border-slate-100 dark:border-slate-700 shadow-2xl space-y-4 relative animate-scale-up">
+            <button
+              onClick={() => setShowIOSPrompt(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 dark:text-slate-500 transition-all cursor-pointer"
+              aria-label="Cerrar modal"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            
+            <div className="w-12 h-12 rounded-2xl bg-[#FF1744]/10 text-[#FF1744] flex items-center justify-center mx-auto">
+              <Download className="w-6 h-6" />
+            </div>
+            
+            <div className="text-center">
+              <h3 className="font-extrabold text-base text-slate-850 dark:text-white">Instalar en tu iPhone o iPad</h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-relaxed mt-1">
+                Lleva la aplicación en tu pantalla de inicio siguiendo estos sencillos pasos:
+              </p>
+            </div>
+
+            <ol className="text-xs text-slate-650 dark:text-slate-300 text-left list-decimal pl-5 space-y-2.5 font-semibold pt-2">
+              <li>
+                Pulsa el botón de <strong>Compartir</strong> en la barra inferior de Safari (el ícono del cuadro con la flecha hacia arriba).
+              </li>
+              <li>
+                Desplázate por el menú y selecciona <strong>Añadir a la pantalla de inicio</strong>.
+              </li>
+              <li>
+                Confirma el nombre y presiona <strong>Añadir</strong> en la esquina superior derecha.
+              </li>
+            </ol>
+
+            <button
+              onClick={() => setShowIOSPrompt(false)}
+              className="w-full py-3 mt-2 bg-[#FF1744] hover:bg-red-650 text-white font-bold rounded-xl transition-all text-xs cursor-pointer shadow-sm shadow-red-200 dark:shadow-none"
+            >
+              Entendido
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -231,7 +231,7 @@ export const Settings: React.FC = () => {
                 disabled={!isAdmin}
                 value={config.alertDays}
                 onChange={handleAlertDaysChange}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-slate-900 dark:text-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] disabled:opacity-60"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-black dark:text-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] disabled:opacity-60"
               >
                 <option value={1}>1 día de anticipación</option>
                 <option value={2}>2 días de anticipación</option>
@@ -343,7 +343,7 @@ export const Settings: React.FC = () => {
                     value={projectId}
                     onChange={(e) => setProjectId(e.target.value)}
                     placeholder="E.g. pedidosya-expiry-control"
-                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-slate-900 dark:text-white font-semibold rounded-lg"
+                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-black dark:text-white font-semibold rounded-lg"
                   />
                 </div>
 
@@ -354,7 +354,7 @@ export const Settings: React.FC = () => {
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
                     placeholder="AIzaSyA1..."
-                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-slate-900 dark:text-white font-semibold rounded-lg"
+                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-black dark:text-white font-semibold rounded-lg"
                   />
                 </div>
 
@@ -510,7 +510,7 @@ export const Settings: React.FC = () => {
                         value={newUsername}
                         onChange={(e) => setNewUsername(e.target.value)}
                         placeholder="Ej. juan_perez"
-                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-slate-900 dark:text-white font-semibold rounded-lg"
+                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-black dark:text-white font-semibold rounded-lg"
                       />
                     </div>
 
@@ -523,7 +523,7 @@ export const Settings: React.FC = () => {
                           value={newPassword}
                           onChange={(e) => setNewPassword(e.target.value)}
                           placeholder="••••••••"
-                          className="w-full pl-3 pr-10 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-slate-900 dark:text-white font-semibold rounded-lg"
+                          className="w-full pl-3 pr-10 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-black dark:text-white font-semibold rounded-lg"
                         />
                         <button
                           type="button"
@@ -541,7 +541,7 @@ export const Settings: React.FC = () => {
                       <select
                         value={newRole}
                         onChange={(e) => setNewRole(e.target.value as 'admin' | 'empleado')}
-                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-slate-900 dark:text-white font-semibold rounded-lg"
+                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-black dark:text-white font-semibold rounded-lg"
                       >
                         <option value="empleado">Empleado</option>
                         <option value="admin">Administrador</option>

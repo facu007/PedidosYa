@@ -172,7 +172,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
                     maxLength={5}
                     className={`w-full px-4 py-3 rounded-xl border ${
                       errors.code ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'
-                    } bg-slate-50 dark:bg-slate-750 text-slate-900 dark:text-white placeholder-slate-450 focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] transition-all text-sm font-semibold`}
+                    } bg-slate-50 dark:bg-slate-750 text-black dark:text-white placeholder-slate-455 focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] transition-all text-sm font-semibold`}
                   />
                   {errors.code && (
                     <span className="absolute inset-y-0 right-0 pr-3 flex items-center text-red-500">
@@ -217,7 +217,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
               </label>
               <select
                 {...register('location')}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] transition-all text-sm font-semibold"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] transition-all text-sm font-semibold"
               >
                 {locations.map((loc) => (
                   <option key={loc} value={loc}>
@@ -243,7 +243,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
                   {...register('addedDate')}
                   className={`w-full px-4 py-3 rounded-xl border ${
                     errors.addedDate ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'
-                  } bg-slate-50 dark:bg-slate-750 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] transition-all text-sm font-semibold`}
+                  } bg-slate-50 dark:bg-slate-750 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] transition-all text-sm font-semibold`}
                 />
                 {errors.addedDate && (
                   <p className="text-xs text-red-500 font-semibold mt-1.5">{errors.addedDate.message}</p>
@@ -261,7 +261,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
                   {...register('expiryDate')}
                   className={`w-full px-4 py-3 rounded-xl border ${
                     errors.expiryDate ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'
-                  } bg-slate-50 dark:bg-slate-750 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] transition-all text-sm font-semibold`}
+                  } bg-slate-50 dark:bg-slate-750 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] transition-all text-sm font-semibold`}
                 />
                 {errors.expiryDate && (
                   <p className="text-xs text-red-500 font-semibold mt-1.5">{errors.expiryDate.message}</p>
@@ -279,7 +279,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
                 {...register('observations')}
                 placeholder="Detalles adicionales, marca del producto, lote..."
                 rows={3}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] transition-all text-sm font-medium"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-black dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] transition-all text-sm font-medium"
               />
             </div>
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { BrowserMultiFormatReader } from '@zxing/library';
+import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/library';
 import { useAudio } from '../hooks/useAudio';
 import { Camera, X, RefreshCw, AlertTriangle } from 'lucide-react';
 
@@ -18,7 +18,20 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, o
   const { playScan, playError } = useAudio();
 
   useEffect(() => {
-    const codeReader = new BrowserMultiFormatReader();
+    // Configure hints to search strictly for 1D barcodes
+    const hints = new Map();
+    const formats = [
+      BarcodeFormat.EAN_13,
+      BarcodeFormat.EAN_8,
+      BarcodeFormat.CODE_128,
+      BarcodeFormat.CODE_39,
+      BarcodeFormat.UPC_A,
+      BarcodeFormat.UPC_E,
+      BarcodeFormat.ITF
+    ];
+    hints.set(DecodeHintType.POSSIBLE_FORMATS, formats);
+
+    const codeReader = new BrowserMultiFormatReader(hints);
     codeReaderRef.current = codeReader;
 
     const startScanner = async () => {
@@ -154,7 +167,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, o
         {/* Video feed */}
         <video
           ref={videoRef}
-          className={`w-full h-full object-cover ${loading || error ? 'hidden' : 'block'}`}
+          className={`w-full h-full object-contain ${loading || error ? 'hidden' : 'block'}`}
           muted
           playsInline
           autoPlay

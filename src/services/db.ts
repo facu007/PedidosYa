@@ -13,6 +13,7 @@ export interface Product {
   isDiscarded: boolean;
   lastUpdated?: string;
   category?: 'cárnicos' | 'embutidos' | 'lácteos' | 'vegetales' | 'general';
+  quantity: number;
 }
 
 export interface AuditLog {
@@ -43,6 +44,7 @@ export interface AppConfig {
   soundEnabled: boolean;
   theme: 'light' | 'dark';
   syncEnabled: boolean;
+  syncProvider?: 'firebase' | 'supabase';
   firebaseConfig?: {
     apiKey: string;
     authDomain: string;
@@ -50,6 +52,10 @@ export interface AppConfig {
     storageBucket: string;
     messagingSenderId: string;
     appId: string;
+  };
+  supabaseConfig?: {
+    url: string;
+    anonKey: string;
   };
 }
 
@@ -146,6 +152,7 @@ export const seedDB = async () => {
       soundEnabled: true,
       theme: 'light',
       syncEnabled: false,
+      syncProvider: 'firebase',
     });
   }
   await txConfig.done;

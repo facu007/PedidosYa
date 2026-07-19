@@ -63,6 +63,7 @@ const productSchema = z.object({
   expiryDate: z.string().min(1, 'Seleccione una fecha de vencimiento.'),
   addedDate: z.string().min(1, 'Seleccione una fecha de carga.'),
   observations: z.string().optional(),
+  quantity: z.number().min(1, 'La cantidad debe ser al menos 1.'),
 });
 
 type ProductFormValues = z.infer<typeof productSchema>;
@@ -89,6 +90,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
       expiryDate: '',
       addedDate: new Date().toISOString().split('T')[0],
       observations: '',
+      quantity: 1,
     },
   });
 
@@ -103,6 +105,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
         setValue('expiryDate', prod.expiryDate);
         setValue('addedDate', prod.addedDate.split('T')[0]);
         setValue('observations', prod.observations || '');
+        setValue('quantity', prod.quantity || 1);
       }
     } else {
       reset({
@@ -112,6 +115,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
         expiryDate: '',
         addedDate: new Date().toISOString().split('T')[0],
         observations: '',
+        quantity: 1,
       });
     }
   }, [productIdToEdit, products, setValue, reset, isOpen]);
@@ -128,6 +132,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
         expiryDate: values.expiryDate,
         addedDate: new Date(values.addedDate + 'T12:00:00').toISOString(),
         observations: values.observations,
+        quantity: values.quantity,
       });
       playSuccess();
       setShowConfirmation(true);
@@ -273,6 +278,22 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
               </select>
               {errors.location && (
                 <p className="text-xs text-red-500 font-semibold mt-1.5">{errors.location.message}</p>
+              )}
+            </div>
+
+            {/* Quantity field */}
+            <div>
+              <label className="block text-xs font-bold text-[#000000] dark:text-slate-450 uppercase tracking-wider mb-2 flex items-center gap-1">
+                <span>Cantidad</span>
+              </label>
+              <input
+                type="number"
+                min={1}
+                {...register('quantity', { valueAsNumber: true })}
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] transition-all text-sm font-semibold"
+              />
+              {errors.quantity && (
+                <p className="text-xs text-red-500 font-semibold mt-1.5">{errors.quantity.message}</p>
               )}
             </div>
 

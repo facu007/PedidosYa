@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { dbService } from '../services/db';
 import type { User } from '../services/db';
-import { firebaseService } from '../services/firebase';
+import { syncService } from '../services/syncService';
 
 interface AuthContextType {
   user: User | null;
@@ -34,8 +34,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const triggerBackgroundSync = async () => {
     try {
       const dbConfig = await dbService.getConfig();
-      if (dbConfig.syncEnabled && dbConfig.firebaseConfig && navigator.onLine) {
-        await firebaseService.syncData(dbConfig.firebaseConfig);
+      if (dbConfig.syncEnabled && navigator.onLine) {
+        await syncService.syncData(dbConfig);
       }
     } catch (e) {
       console.error('Error syncing users in background:', e);

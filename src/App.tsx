@@ -9,6 +9,7 @@ import { History } from './views/History';
 import { Statistics } from './views/Statistics';
 import { Settings } from './views/Settings';
 import { ProductForm } from './views/ProductForm';
+import { StockAdjustments } from './views/StockAdjustments';
 import { RefreshCw } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -72,6 +73,8 @@ export const App: React.FC = () => {
         return <History onEditProduct={handleEditProduct} />;
       case 'stats':
         return <Statistics />;
+      case 'adjustments':
+        return <StockAdjustments />;
       case 'settings':
         return <Settings />;
       default:

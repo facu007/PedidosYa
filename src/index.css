@@ -61,9 +61,18 @@
   animation: pingSlow 1.2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
 }
 
-/* Force form controls to have black text and white background in all themes */
+/* Adaptive styling for form controls in light and dark themes */
 input, select, textarea, option {
-  color: #000000 !important;
+  color: #0d1527 !important;
   background-color: #ffffff !important;
+}
+
+.dark input, .dark select, .dark textarea, .dark option {
+  color: #f8fafc !important;
+  background-color: #1e293b !important;
+}
+
+.dark input::placeholder, .dark textarea::placeholder {
+  color: #94a3b8 !important;
 }
 

@@ -11,7 +11,8 @@ import {
   Sun, 
   Moon,
   Download,
-  X
+  X,
+  Sliders
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -102,6 +103,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'history', label: 'Historial', icon: ClipboardList },
+    { id: 'adjustments', label: 'Ajustes Stock', icon: Sliders },
     { id: 'add-trigger', label: 'Agregar', icon: Plus, isAction: true },
     { id: 'stats', label: 'Estadísticas', icon: BarChart3 },
     { id: 'settings', label: 'Configuración', icon: Settings },

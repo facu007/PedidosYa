@@ -3,7 +3,7 @@ import { dbService } from '../services/db';
 import type { Product, AppConfig, AuditLog } from '../services/db';
 import { useAuth } from './AuthContext';
 import { differenceInCalendarDays, startOfDay } from 'date-fns';
-import { firebaseService } from '../services/firebase';
+import { syncService } from '../services/syncService';
 
 interface AppContextType {
   products: Product[];
@@ -104,11 +104,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       // Recalculate status of active products based on config.alertDays
       const updatedProducts = dbProducts.map((p) => {
+        const qty = p.quantity !== undefined && p.quantity !== null ? p.quantity : 1;
         if (p.isDiscarded) {
-          return { ...p, status: 'descartado' as const };
+          return { ...p, quantity: qty, status: 'descartado' as const };
         }
         return {
           ...p,
+          quantity: qty,
           status: calculateProductStatus(p.expiryDate, p.category, dbConfig),
         };
       });
@@ -124,10 +126,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Helper for background sync
   const triggerBackgroundSync = async (currentConfig?: AppConfig) => {
     const cfg = currentConfig || config;
-    if (cfg.syncEnabled && cfg.firebaseConfig && navigator.onLine) {
+    if (cfg.syncEnabled && navigator.onLine) {
       try {
         console.log('Iniciando sincronización automática en segundo plano...');
-        const result = await firebaseService.syncData(cfg.firebaseConfig);
+        const result = await syncService.syncData(cfg);
         if (result.success) {
           console.log('Sincronización en segundo plano completada con éxito.');
           await refreshData(false); // Silent refresh
@@ -143,8 +145,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await refreshData(true);
       try {
         const dbConfig = await dbService.getConfig();
-        if (dbConfig.syncEnabled && dbConfig.firebaseConfig && navigator.onLine) {
-          const result = await firebaseService.syncData(dbConfig.firebaseConfig);
+        if (dbConfig.syncEnabled && navigator.onLine) {
+          const result = await syncService.syncData(dbConfig);
           if (result.success) {
             await refreshData(false);
           }
@@ -164,6 +166,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const fullProduct: Product = {
       ...productData,
+      quantity: productData.quantity ?? (existingProduct ? existingProduct.quantity : 1),
       addedBy: existingProduct ? existingProduct.addedBy : operator,
       addedDate: productData.addedDate || (existingProduct ? existingProduct.addedDate : new Date().toISOString()),
       status,
@@ -208,6 +211,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           code: p.code,
           location: p.location,
           expiryDate: p.expiryDate,
+          quantity: p.quantity ?? 1,
           observations: p.observations || '',
           addedBy: operator,
           addedDate: new Date().toISOString(),

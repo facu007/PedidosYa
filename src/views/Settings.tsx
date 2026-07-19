@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
-import { firebaseService } from '../services/firebase';
+import { syncService } from '../services/syncService';
 import { useAudio } from '../hooks/useAudio';
 import { dbService } from '../services/db';
 import { 
@@ -29,13 +29,20 @@ export const Settings: React.FC = () => {
   const { playSuccess, playError } = useAudio();
   const isAdmin = currentUser?.role === 'admin';
 
-  // Local state for Firebase Configuration
+  // Local state for Sync Configuration
+  const [syncProvider, setSyncProvider] = useState<'firebase' | 'supabase'>(config.syncProvider || 'firebase');
   const [apiKey, setApiKey] = useState(config.firebaseConfig?.apiKey || '');
   const [projectId, setProjectId] = useState(config.firebaseConfig?.projectId || '');
+  const [supabaseUrl, setSupabaseUrl] = useState(config.supabaseConfig?.url || '');
+  const [supabaseAnonKey, setSupabaseAnonKey] = useState(config.supabaseConfig?.anonKey || '');
   const [syncEnabled, setSyncEnabled] = useState(config.syncEnabled);
   const [syncStatus, setSyncStatus] = useState<{ success: boolean; message: string } | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [restoreMessage, setRestoreMessage] = useState<{ success: boolean; message: string } | null>(null);
+
+  // Local state for system updates
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [updateMsg, setUpdateMsg] = useState<string | null>(null);
 
   // Local state for user management
   const [newUsername, setNewUsername] = useState('');
@@ -168,14 +175,15 @@ export const Settings: React.FC = () => {
     }
   };
 
-  // Save Firebase configuration
-  const handleSaveFirebase = async (e: React.FormEvent) => {
+  // Save Sincronización configuration
+  const handleSaveSync = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAdmin) return;
     
     await saveConfig({
       ...config,
       syncEnabled,
+      syncProvider,
       firebaseConfig: {
         apiKey,
         projectId,
@@ -183,23 +191,78 @@ export const Settings: React.FC = () => {
         storageBucket: `${projectId}.appspot.com`,
         messagingSenderId: '123456789',
         appId: '1:123456789:web:123456789',
+      },
+      supabaseConfig: {
+        url: supabaseUrl,
+        anonKey: supabaseAnonKey,
       }
     });
     playSuccess();
-    setSyncStatus({ success: true, message: 'Configuración de Firebase guardada.' });
+    setSyncStatus({ success: true, message: 'Configuración de sincronización guardada.' });
   };
 
-  // Trigger Mock Sync Now
+  // Trigger Sync Now
   const handleSyncNow = async () => {
     setSyncing(true);
     setSyncStatus(null);
-    const result = await firebaseService.syncData({ apiKey, projectId });
+    const tempConfig = {
+      ...config,
+      syncEnabled: true,
+      syncProvider,
+      firebaseConfig: {
+        apiKey,
+        projectId,
+        authDomain: `${projectId}.firebaseapp.com`,
+        storageBucket: `${projectId}.appspot.com`,
+        messagingSenderId: '123456789',
+        appId: '1:123456789:web:123456789',
+      },
+      supabaseConfig: {
+        url: supabaseUrl,
+        anonKey: supabaseAnonKey,
+      }
+    };
+    const result = await syncService.syncData(tempConfig);
     setSyncing(false);
     setSyncStatus({ success: result.success, message: result.message });
     if (result.success) {
       playSuccess();
+      await refreshData();
     } else {
       playError();
+    }
+  };
+
+  const handleCheckUpdates = async () => {
+    setCheckingUpdate(true);
+    setUpdateMsg(null);
+    try {
+      if ('serviceWorker' in navigator) {
+        const registration = await navigator.serviceWorker.ready;
+        await registration.update();
+        
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        
+        if (registration.waiting) {
+          setUpdateMsg('¡Nueva versión encontrada! Recargando para aplicar...');
+          playSuccess();
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+        } else {
+          setUpdateMsg('La aplicación ya está en su versión más reciente.');
+          playSuccess();
+        }
+      } else {
+        setUpdateMsg('Las actualizaciones no están soportadas en este navegador.');
+        playError();
+      }
+    } catch (e) {
+      console.error(e);
+      setUpdateMsg('Error al buscar actualizaciones.');
+      playError();
+    } finally {
+      setCheckingUpdate(false);
     }
   };
 
@@ -345,6 +408,32 @@ export const Settings: React.FC = () => {
               </button>
             </div>
 
+            {/* System Updates check */}
+            <div className="border-t border-slate-100 dark:border-slate-700 pt-3 mt-3">
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-black dark:text-slate-350 uppercase tracking-wider">Actualizaciones de App</p>
+                    <p className="text-[10px] text-slate-900 dark:text-slate-400 font-semibold">Buscar nueva versión del sistema</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCheckUpdates}
+                    disabled={checkingUpdate}
+                    className="py-1.5 px-3 bg-[#FF1744] hover:bg-red-650 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm shrink-0 active:scale-95 disabled:opacity-50 disabled:scale-100 cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${checkingUpdate ? 'animate-spin' : ''}`} />
+                    <span>{checkingUpdate ? 'Buscando...' : 'Buscar'}</span>
+                  </button>
+                </div>
+                {updateMsg && (
+                  <p className="text-[10px] font-bold text-slate-650 dark:text-slate-350 bg-slate-50 dark:bg-slate-750 p-2 rounded-lg border border-slate-100 dark:border-slate-700">
+                    {updateMsg}
+                  </p>
+                )}
+              </div>
+            </div>
+
             {!isAdmin && (
               <div className="p-3 bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 rounded-xl text-[10px] text-[#FF1744] dark:text-red-400 font-semibold flex items-center gap-1.5">
                 <Shield className="w-4 h-4" />
@@ -401,9 +490,9 @@ export const Settings: React.FC = () => {
             </div>
           )}
 
-          {/* Firebase Sync Settings (Admin) */}
+          {/* Sync Settings (Admin) */}
           {isAdmin && (
-            <form onSubmit={handleSaveFirebase} className="bg-white dark:bg-slate-800 rounded-3xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
+            <form onSubmit={handleSaveSync} className="bg-white dark:bg-slate-800 rounded-3xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
               <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-700 pb-3">
                 <CloudLightning className="w-5 h-5 text-[#FF1744]" />
                 <h3 className="font-extrabold text-sm text-black dark:text-white">Sincronización Nube</h3>
@@ -422,26 +511,84 @@ export const Settings: React.FC = () => {
 
               <div className="space-y-3 text-xs">
                 <div>
-                  <label className="block font-bold text-black dark:text-slate-400 uppercase tracking-wider mb-1">Firebase Project ID</label>
-                  <input
-                    type="text"
-                    value={projectId}
-                    onChange={(e) => setProjectId(e.target.value)}
-                    placeholder="E.g. pedidosya-expiry-control"
-                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-black dark:text-white font-semibold rounded-lg"
-                  />
+                  <label className="block font-bold text-black dark:text-slate-400 uppercase tracking-wider mb-2">Proveedor de Sincronización</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSyncProvider('firebase')}
+                      className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
+                        syncProvider === 'firebase'
+                          ? 'bg-[#FF1744] text-white border-[#FF1744]'
+                          : 'bg-slate-50 dark:bg-slate-750 text-slate-700 dark:text-slate-350 border-slate-200 dark:border-slate-700'
+                      }`}
+                    >
+                      Firebase
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSyncProvider('supabase')}
+                      className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
+                        syncProvider === 'supabase'
+                          ? 'bg-[#FF1744] text-white border-[#FF1744]'
+                          : 'bg-slate-50 dark:bg-slate-750 text-slate-700 dark:text-slate-350 border-slate-200 dark:border-slate-700'
+                      }`}
+                    >
+                      Supabase
+                    </button>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block font-bold text-black dark:text-slate-400 uppercase tracking-wider mb-1">API Key</label>
-                  <input
-                    type="password"
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    placeholder="AIzaSyA1..."
-                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-black dark:text-white font-semibold rounded-lg"
-                  />
-                </div>
+                {syncProvider === 'firebase' && (
+                  <>
+                    <div>
+                      <label className="block font-bold text-black dark:text-slate-400 uppercase tracking-wider mb-1">Firebase Project ID</label>
+                      <input
+                        type="text"
+                        value={projectId}
+                        onChange={(e) => setProjectId(e.target.value)}
+                        placeholder="E.g. pedidosya-expiry-control"
+                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-black dark:text-white font-semibold rounded-lg"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-black dark:text-slate-400 uppercase tracking-wider mb-1">API Key</label>
+                      <input
+                        type="password"
+                        value={apiKey}
+                        onChange={(e) => setApiKey(e.target.value)}
+                        placeholder="AIzaSyA1..."
+                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-black dark:text-white font-semibold rounded-lg"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {syncProvider === 'supabase' && (
+                  <>
+                    <div>
+                      <label className="block font-bold text-black dark:text-slate-400 uppercase tracking-wider mb-1">Supabase URL</label>
+                      <input
+                        type="text"
+                        value={supabaseUrl}
+                        onChange={(e) => setSupabaseUrl(e.target.value)}
+                        placeholder="https://xyz.supabase.co"
+                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-black dark:text-white font-semibold rounded-lg"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-black dark:text-slate-400 uppercase tracking-wider mb-1">Supabase Anon Key</label>
+                      <input
+                        type="password"
+                        value={supabaseAnonKey}
+                        onChange={(e) => setSupabaseAnonKey(e.target.value)}
+                        placeholder="eyJhbGciOi..."
+                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-black dark:text-white font-semibold rounded-lg"
+                      />
+                    </div>
+                  </>
+                )}
 
                 <div className="flex items-center gap-2 py-1">
                   <input

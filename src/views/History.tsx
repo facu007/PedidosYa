@@ -15,8 +15,7 @@ import {
   Info,
   ArrowUpDown,
   CheckCircle,
-  X,
-  Tag
+  X
 } from 'lucide-react';
 
 interface HistoryProps {

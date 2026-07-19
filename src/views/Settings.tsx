@@ -550,8 +550,8 @@ export const Settings: React.FC = () => {
                   <button onClick={() => setUserSuccess(null)}><X className="w-3.5 h-3.5" /></button>
                 </div>
               )}
-
-                    {/* User List */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* User List */}
                 <div className="space-y-3">
                   <h4 className="text-xs font-bold text-black dark:text-slate-400 uppercase tracking-wider">Usuarios Registrados</h4>
                   <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">

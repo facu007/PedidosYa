@@ -225,9 +225,28 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
             className="px-4 py-2.5 bg-[#FF1744] text-white hover:bg-red-600 rounded-xl transition-all flex items-center gap-1.5 font-bold text-xs shadow-md shadow-red-200 dark:shadow-none"
           >
             <FileDown className="w-4 h-4" />
-            <span>Exportar PDF</span>
+            <span>Descargar PDF</span>
           </button>
         </div>
+      </div>
+
+      {/* Role Banner Indicator */}
+      <div className={`px-4 py-2.5 rounded-2xl border text-xs font-bold flex items-center justify-between ${
+        isAdmin 
+          ? 'bg-amber-500/10 border-amber-500/30 text-amber-800 dark:text-amber-300' 
+          : 'bg-blue-500/10 border-blue-500/30 text-blue-800 dark:text-blue-300'
+      }`}>
+        <div className="flex items-center gap-2">
+          <span>{isAdmin ? '👑 Modo Administrador:' : '👤 Modo Empleado:'}</span>
+          <span className="font-semibold text-slate-700 dark:text-slate-300">
+            {isAdmin 
+              ? 'Permisos completos de edición, eliminación e importación de datos.' 
+              : 'Acceso operativo a consulta, registro, edición e impresión de etiquetas.'}
+          </span>
+        </div>
+        <span className="hidden sm:inline-block text-[10px] uppercase tracking-wider font-extrabold opacity-75">
+          Usuario: {user?.username}
+        </span>
       </div>
 
       {/* Import Status Alert */}

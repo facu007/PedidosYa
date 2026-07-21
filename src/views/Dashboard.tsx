@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../hooks/useNotifications';
 import { 
   Calendar, 
@@ -23,6 +24,9 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) => {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+  
   const { 
     products, 
     getDashboardStats, 
@@ -76,8 +80,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
         {/* Welcome Box */}
         <div className="bg-gradient-to-r from-[#FF1744] to-red-650 p-6 rounded-3xl text-white shadow-lg flex flex-col justify-between">
           <div>
-            <h2 className="text-2xl font-extrabold mb-1">¡Hola, Sucursal!</h2>
-            <p className="text-white/80 text-xs font-medium">Control de stock refrigerado de PedidosYa.</p>
+            <div className="flex items-center gap-2 mb-2">
+              <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
+                isAdmin ? 'bg-amber-400 text-slate-900 shadow-sm' : 'bg-white/20 text-white backdrop-blur-sm'
+              }`}>
+                {isAdmin ? '👑 MODO ADMINISTRADOR' : '👤 MODO EMPLEADO OPERATIVO'}
+              </span>
+            </div>
+            <h2 className="text-2xl font-extrabold mb-1">¡Hola, {user?.username || 'Sucursal'}!</h2>
+            <p className="text-white/80 text-xs font-medium">
+              {isAdmin 
+                ? 'Gestión total de vencimientos, mermas, usuarios y configuración nube.' 
+                : 'Control operativo de cargas y vencimientos de stock en sucursal.'}
+            </p>
           </div>
           <div className="mt-6 flex flex-wrap gap-2">
             <button

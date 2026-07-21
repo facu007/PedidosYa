@@ -279,6 +279,30 @@ export const Settings: React.FC = () => {
         <p className="text-xs text-slate-900 dark:text-slate-400 mt-0.5 font-semibold">Controla las alertas de vencimiento, copias de seguridad y auditoría de la sucursal.</p>
       </div>
 
+      {/* Role Banner Banner */}
+      <div className={`p-4 rounded-2xl border text-xs font-bold flex items-center justify-between shadow-sm ${
+        isAdmin 
+          ? 'bg-gradient-to-r from-amber-500/10 to-red-500/10 border-amber-500/30 text-amber-900 dark:text-amber-300' 
+          : 'bg-gradient-to-r from-blue-500/10 to-slate-500/10 border-blue-500/30 text-blue-900 dark:text-blue-300'
+      }`}>
+        <div className="flex items-center gap-2.5">
+          <Shield className="w-5 h-5 shrink-0 text-[#FF1744]" />
+          <div>
+            <p className="font-extrabold text-sm">
+              {isAdmin ? '👑 Modo Administrador Activo' : '👤 Modo Empleado Operativo'}
+            </p>
+            <p className="text-[11px] font-medium opacity-90">
+              {isAdmin 
+                ? 'Tienes acceso total a gestión de usuarios, contraseñas, sincronización nube y copias de seguridad.' 
+                : 'Navegando con permisos de lectura. La creación de usuarios, la nube y los ajustes de sistema requieren cuenta Admin.'}
+            </p>
+          </div>
+        </div>
+        <span className="hidden sm:inline-block text-[10px] font-black uppercase px-2.5 py-1 rounded-lg bg-white/50 dark:bg-black/20">
+          {currentUser?.username}
+        </span>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Left column: App configuration & Sync */}

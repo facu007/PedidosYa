@@ -257,19 +257,17 @@ export const firebaseService = {
           localConfig.alertDaysCarnicos !== remoteConfig.alertDaysCarnicos ||
           localConfig.alertDaysEmbutidos !== remoteConfig.alertDaysEmbutidos ||
           localConfig.alertDaysLacteos !== remoteConfig.alertDaysLacteos ||
-          localConfig.alertDaysVegetales !== remoteConfig.alertDaysVegetales;
+          localConfig.alertDaysVegetales !== remoteConfig.alertDaysVegetales ||
+          localConfig.theme !== remoteConfig.theme;
 
         if (configKeysChanged) {
           const mergedConfig: AppConfig = {
+            ...remoteConfig,
             ...localConfig,
-            alertDays: remoteConfig.alertDays,
-            alertDaysCarnicos: remoteConfig.alertDaysCarnicos ?? localConfig.alertDaysCarnicos,
-            alertDaysEmbutidos: remoteConfig.alertDaysEmbutidos ?? localConfig.alertDaysEmbutidos,
-            alertDaysLacteos: remoteConfig.alertDaysLacteos ?? localConfig.alertDaysLacteos,
-            alertDaysVegetales: remoteConfig.alertDaysVegetales ?? localConfig.alertDaysVegetales,
-            soundEnabled: remoteConfig.soundEnabled,
-            theme: remoteConfig.theme || localConfig.theme,
+            key: 'settings',
           };
+          const configRef = doc(db, 'config', 'settings');
+          dbBatch.set(configRef, mergedConfig);
           localConfigToPut = mergedConfig;
           localUpdatesNeeded = true;
           changesCount++;

@@ -14,6 +14,9 @@ export interface Product {
   lastUpdated?: string;
   category?: 'cárnicos' | 'embutidos' | 'lácteos' | 'vegetales' | 'general';
   quantity: number;
+  unit?: 'unidades' | 'kg';
+  weight?: number;
+  costPrice?: number;
 }
 
 export interface AuditLog {

@@ -8,11 +8,14 @@ import {
   Info,
   Trash2,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  Printer
 } from 'lucide-react';
 import { formatDistanceToNow, differenceInCalendarDays, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { getTuesdayControlStatus, getNextTuesday } from '../utils/tuesdayControl';
+import { calculateSuggestedDiscount } from '../utils/discountCalculator';
+import { printProductLabel } from '../utils/labelPrinter';
 
 interface DashboardProps {
   setView: (view: string) => void;
@@ -278,6 +281,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
                 startOfDay(new Date(product.expiryDate + 'T00:00:00')), 
                 startOfDay(new Date())
               );
+              const discount = calculateSuggestedDiscount(product.expiryDate, product.costPrice);
               
               return (
                 <div key={product.id} className="py-4 flex items-center justify-between gap-4 group hover:bg-slate-50/50 dark:hover:bg-slate-700/10 px-2 rounded-xl transition-all">
@@ -297,6 +301,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
                         <span className="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 font-bold px-2 py-0.5 rounded">
                           {product.location}
                         </span>
+                        {product.unit === 'kg' || product.weight ? (
+                          <span className="text-[10px] bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 font-extrabold px-2 py-0.5 rounded border border-red-200 dark:border-red-500/20">
+                            ⚖️ {product.weight ? `${product.weight} Kg` : 'Por peso'} {product.quantity > 1 ? `(${product.quantity} pzs)` : ''}
+                          </span>
+                        ) : product.quantity > 1 ? (
+                          <span className="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-350 font-bold px-2 py-0.5 rounded">
+                            📦 {product.quantity} un.
+                          </span>
+                        ) : null}
                         {/* Tuesday Control Badge */}
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1 ${
                           tControl.isLoaded 
@@ -306,6 +319,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
                           <span className={`w-1.5 h-1.5 rounded-full ${tControl.isLoaded ? 'bg-emerald-500' : 'bg-orange-500'}`} />
                           <span>{tControl.isLoaded ? 'Cargado' : 'Pendiente'}</span>
                         </span>
+                        {/* Suggested Discount Badge */}
+                        {discount.percentage > 0 && (
+                          <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded ${discount.badgeClass}`}>
+                            {discount.label}
+                          </span>
+                        )}
                       </div>
                       
                       {/* Sub-details */}
@@ -314,6 +333,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
                           <Calendar className="w-3.5 h-3.5" />
                           <span>Vence: {new Date(product.expiryDate + 'T00:00:00').toLocaleDateString()}</span>
                         </span>
+                        {product.costPrice && (
+                          <>
+                            <span>•</span>
+                            <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                              Costo: ${product.costPrice}
+                            </span>
+                          </>
+                        )}
                         <span>•</span>
                         <span>Cargado por: {product.addedBy}</span>
                         <span>•</span>
@@ -345,6 +372,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
                     </div>
 
                     <div className="flex items-center gap-1.5">
+                      {/* Print Label Button */}
+                      <button
+                        onClick={() => printProductLabel(product)}
+                        className="p-2 text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-all"
+                        title="Imprimir Etiqueta"
+                      >
+                        <Printer className="w-4 h-4" />
+                      </button>
+
                       {/* Edit Button */}
                       <button
                         onClick={() => onEditProduct(product.id)}
@@ -364,7 +400,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
                       </button>
                     </div>
                   </div>
-
                 </div>
               );
             })}

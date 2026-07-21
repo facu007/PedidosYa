@@ -113,6 +113,8 @@ export const StockAdjustments: React.FC = () => {
         location: selectedProduct.location,
         expiryDate: selectedProduct.expiryDate,
         quantity: newQty,
+        unit: selectedProduct.unit,
+        weight: selectedProduct.weight,
         observations: selectedProduct.observations 
           ? `${selectedProduct.observations} | ${obsText}`
           : obsText,
@@ -226,8 +228,12 @@ export const StockAdjustments: React.FC = () => {
                           <span>{new Date(p.expiryDate + 'T00:00:00').toLocaleDateString()}</span>
                         </span>
                       </td>
-                      <td className="py-4 px-5 text-center font-extrabold text-base text-[#FF1744] dark:text-red-400">
-                        {p.quantity ?? 1}
+                      <td className="py-4 px-5 text-center font-extrabold text-xs text-[#FF1744] dark:text-red-400">
+                        {p.unit === 'kg' || p.weight ? (
+                          <span className="whitespace-nowrap font-extrabold">⚖️ {p.weight ? `${p.weight} Kg` : 'Por peso'}</span>
+                        ) : (
+                          <span className="whitespace-nowrap font-bold">📦 {p.quantity ?? 1} un.</span>
+                        )}
                       </td>
                       <td className="py-4 px-5">
                         <div className="flex flex-col gap-0.5">
@@ -312,7 +318,9 @@ export const StockAdjustments: React.FC = () => {
                     <div className="flex flex-col gap-0.5">
                       <div className="flex items-center gap-1.5">
                         <span className="text-[10px] uppercase font-bold text-slate-400/80">Stock:</span>
-                        <span className="text-base font-black text-[#FF1744] dark:text-red-400">{p.quantity ?? 1}</span>
+                        <span className="text-sm font-black text-[#FF1744] dark:text-red-400">
+                          {p.unit === 'kg' || p.weight ? `⚖️ ${p.weight ? `${p.weight} Kg` : 'Por peso'}` : `📦 ${p.quantity ?? 1} un.`}
+                        </span>
                       </div>
                       <span className="text-[10px] text-slate-450 dark:text-slate-400 font-medium">
                         {tControl.label}
@@ -374,7 +382,11 @@ export const StockAdjustments: React.FC = () => {
                     <span>Vencimiento: <span className="font-bold">{new Date(selectedProduct.expiryDate + 'T00:00:00').toLocaleDateString()}</span></span>
                   </div>
                   <p className="text-slate-800 dark:text-white font-bold text-sm">
-                    Stock actual: <span className="text-[#FF1744] dark:text-red-400">{selectedProduct.quantity ?? 1} unidades</span>
+                    Stock actual: <span className="text-[#FF1744] dark:text-red-400">
+                      {selectedProduct.unit === 'kg' || selectedProduct.weight 
+                        ? `⚖️ ${selectedProduct.weight ? `${selectedProduct.weight} Kg` : 'Por peso'} (${selectedProduct.quantity ?? 1} pzs)` 
+                        : `${selectedProduct.quantity ?? 1} unidades`}
+                    </span>
                   </p>
                 </div>
 

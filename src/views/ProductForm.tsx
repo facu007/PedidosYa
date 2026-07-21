@@ -16,8 +16,11 @@ import {
   MapPin, 
   CalendarDays,
   Plus,
-  Tag
+  Tag,
+  Scale,
+  DollarSign
 } from 'lucide-react';
+import { calculateSuggestedDiscount } from '../utils/discountCalculator';
 
 interface ProductFormProps {
   isOpen: boolean;
@@ -63,7 +66,10 @@ const productSchema = z.object({
   expiryDate: z.string().min(1, 'Seleccione una fecha de vencimiento.'),
   addedDate: z.string().min(1, 'Seleccione una fecha de carga.'),
   observations: z.string().optional(),
+  unit: z.enum(['unidades', 'kg']),
   quantity: z.number().min(1, 'La cantidad debe ser al menos 1.'),
+  weight: z.number().optional(),
+  costPrice: z.number().optional(),
 });
 
 type ProductFormValues = z.infer<typeof productSchema>;
@@ -90,9 +96,27 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
       expiryDate: '',
       addedDate: new Date().toISOString().split('T')[0],
       observations: '',
+      unit: 'unidades',
       quantity: 1,
+      weight: undefined,
+      costPrice: undefined,
     },
   });
+
+  const selectedCategory = watch('category');
+  const selectedUnit = watch('unit');
+  const selectedExpiry = watch('expiryDate');
+  const selectedCost = watch('costPrice');
+  const liveDiscount = calculateSuggestedDiscount(selectedExpiry, selectedCost);
+
+  // Auto switch unit to 'kg' when selecting 'cárnicos' if creating a new product
+  useEffect(() => {
+    if (!productIdToEdit) {
+      if (selectedCategory === 'cárnicos') {
+        setValue('unit', 'kg');
+      }
+    }
+  }, [selectedCategory, productIdToEdit, setValue]);
 
   // Load product to edit if productIdToEdit changes
   useEffect(() => {
@@ -105,7 +129,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
         setValue('expiryDate', prod.expiryDate);
         setValue('addedDate', prod.addedDate.split('T')[0]);
         setValue('observations', prod.observations || '');
+        setValue('unit', prod.unit || (prod.category === 'cárnicos' || prod.weight ? 'kg' : 'unidades'));
         setValue('quantity', prod.quantity || 1);
+        setValue('weight', prod.weight);
+        setValue('costPrice', prod.costPrice);
       }
     } else {
       reset({
@@ -115,7 +142,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
         expiryDate: '',
         addedDate: new Date().toISOString().split('T')[0],
         observations: '',
+        unit: 'unidades',
         quantity: 1,
+        weight: undefined,
+        costPrice: undefined,
       });
     }
   }, [productIdToEdit, products, setValue, reset, isOpen]);
@@ -133,6 +163,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
         addedDate: new Date(values.addedDate + 'T12:00:00').toISOString(),
         observations: values.observations,
         quantity: values.quantity,
+        unit: values.unit,
+        weight: values.unit === 'kg' ? values.weight : undefined,
+        costPrice: values.costPrice,
       });
       playSuccess();
       setShowConfirmation(true);
@@ -281,19 +314,84 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
               )}
             </div>
 
-            {/* Quantity field */}
-            <div>
-              <label className="block text-xs font-bold text-[#000000] dark:text-slate-450 uppercase tracking-wider mb-2 flex items-center gap-1">
-                <span>Cantidad</span>
+            {/* Unit type & Quantity / Weight */}
+            <div className="space-y-3 p-4 bg-slate-50 dark:bg-slate-750/50 rounded-2xl border border-slate-200/80 dark:border-slate-700">
+              <label className="block text-xs font-bold text-[#000000] dark:text-slate-350 uppercase tracking-wider flex items-center gap-1.5">
+                <Scale className="w-4 h-4 text-[#FF1744]" />
+                <span>Modalidad de Registro (Unidad / Peso)</span>
               </label>
-              <input
-                type="number"
-                min={1}
-                {...register('quantity', { valueAsNumber: true })}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] transition-all text-sm font-semibold"
-              />
-              {errors.quantity && (
-                <p className="text-xs text-red-500 font-semibold mt-1.5">{errors.quantity.message}</p>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setValue('unit', 'unidades')}
+                  className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    selectedUnit === 'unidades'
+                      ? 'bg-[#FF1744] text-white border-[#FF1744] shadow-sm'
+                      : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-600'
+                  }`}
+                >
+                  <span>📦 Unidades</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setValue('unit', 'kg')}
+                  className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    selectedUnit === 'kg'
+                      ? 'bg-[#FF1744] text-white border-[#FF1744] shadow-sm'
+                      : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-600'
+                  }`}
+                >
+                  <span>⚖️ Peso (Kg)</span>
+                </button>
+              </div>
+
+              {selectedUnit === 'kg' ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-350 uppercase tracking-wider mb-1">
+                      Peso Total (Kg)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.001"
+                      min={0.001}
+                      placeholder="Ej: 1.500"
+                      {...register('weight', { valueAsNumber: true })}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] transition-all text-sm font-semibold"
+                    />
+                    {errors.weight && (
+                      <p className="text-xs text-red-500 font-semibold mt-1">{errors.weight.message}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-350 uppercase tracking-wider mb-1">
+                      Bultos / Piezas
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      {...register('quantity', { valueAsNumber: true })}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] transition-all text-sm font-semibold"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="pt-2">
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-350 uppercase tracking-wider mb-1">
+                    Cantidad (Unidades)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    {...register('quantity', { valueAsNumber: true })}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] transition-all text-sm font-semibold"
+                  />
+                  {errors.quantity && (
+                    <p className="text-xs text-red-500 font-semibold mt-1">{errors.quantity.message}</p>
+                  )}
+                </div>
               )}
             </div>
 
@@ -333,6 +431,43 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
                 {errors.expiryDate && (
                   <p className="text-xs text-red-500 font-semibold mt-1.5">{errors.expiryDate.message}</p>
                 )}
+              </div>
+            </div>
+
+            {/* Cost & Live Suggested Discount */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-450 uppercase tracking-wider mb-2 flex items-center gap-1">
+                  <DollarSign className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>Costo / Precio Estimado ($)</span>
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="Ej: 450.00"
+                  {...register('costPrice', { valueAsNumber: true })}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] transition-all text-sm font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-450 uppercase tracking-wider mb-2 flex items-center gap-1">
+                  <Tag className="w-3.5 h-3.5 text-[#FF1744]" />
+                  <span>Descuento Sugerido (Martes)</span>
+                </label>
+                <div className="h-[46px] flex items-center px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-750 font-bold text-sm">
+                  {liveDiscount.percentage > 0 ? (
+                    <span className={`px-3 py-1 rounded-lg text-xs font-extrabold flex items-center gap-1.5 ${liveDiscount.badgeClass}`}>
+                      <span>{liveDiscount.label}</span>
+                      {liveDiscount.savingsPerUnit && (
+                        <span className="text-[10px] opacity-90">(-${liveDiscount.savingsPerUnit.toFixed(2)})</span>
+                      )}
+                    </span>
+                  ) : (
+                    <span className="text-slate-400 text-xs">Sin descuento (Precio regular)</span>
+                  )}
+                </div>
               </div>
             </div>
 

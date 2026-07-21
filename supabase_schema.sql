@@ -17,7 +17,9 @@ create table if not exists public.products (
     "isDiscarded" boolean not null default false,
     "lastUpdated" text,
     category text,
-    quantity integer not null default 1
+    quantity integer not null default 1,
+    unit text default 'unidades',
+    weight numeric
 );
 
 -- 2. Tabla de Logs de Auditoría

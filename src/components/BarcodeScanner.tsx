@@ -87,6 +87,11 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, o
     };
   }, []);
 
+  const [isContinuousMode, setIsContinuousMode] = useState<boolean>(true);
+  const [scannedToast, setScannedToast] = useState<string | null>(null);
+  const lastScanTimeRef = useRef<number>(0);
+  const lastCodeRef = useRef<string>('');
+
   // Handle active device changes
   useEffect(() => {
     if (loading || !selectedDevice || !codeReaderRef.current || !videoRef.current) return;
@@ -110,15 +115,32 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, o
           const text = result.getText();
           // Extract last 5 digits of scanned barcode
           const last5 = text.replace(/\D/g, '').slice(-5);
+          const now = Date.now();
+
+          // Debounce 1.5s for same code in continuous mode
           if (last5) {
+            if (last5 === lastCodeRef.current && (now - lastScanTimeRef.current) < 1500) {
+              return;
+            }
+            
+            lastCodeRef.current = last5;
+            lastScanTimeRef.current = now;
+            setScannedToast(`¡Código #${last5} Escaneado!`);
             playScan();
             onScanSuccess(last5);
+
+            setTimeout(() => {
+              setScannedToast(null);
+            }, 1800);
+
+            if (!isContinuousMode) {
+              onClose();
+            }
           } else {
             // Scanned something but no numbers
             playError();
           }
         }
-        // We ignore err here since the reader polls and throws errors continuously while looking for barcodes
       }
     ).catch(err => {
       console.error('Error starting camera decode loop:', err);
@@ -130,7 +152,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, o
         codeReaderRef.current.reset();
       }
     };
-  }, [selectedDevice, loading]);
+  }, [selectedDevice, loading, isContinuousMode]);
 
   const switchCamera = () => {
     if (devices.length <= 1) return;
@@ -186,14 +208,36 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, o
           <Camera className="w-5 h-5 text-[#FF1744]" />
           <h3 className="font-bold text-sm">Escanear Código de Barras</h3>
         </div>
-        <button
-          onClick={onClose}
-          className="p-2 rounded-full bg-slate-800 hover:bg-slate-700 transition-colors"
-          aria-label="Cerrar"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIsContinuousMode(!isContinuousMode)}
+            className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all border ${
+              isContinuousMode
+                ? 'bg-emerald-500 text-white border-emerald-400 shadow-sm shadow-emerald-500/50'
+                : 'bg-slate-800 text-slate-300 border-slate-700'
+            }`}
+          >
+            {isContinuousMode ? '⚡ Modo Continuo' : '🎯 Modo Simple'}
+          </button>
+
+          <button
+            onClick={onClose}
+            className="p-2 rounded-full bg-slate-800 hover:bg-slate-700 transition-colors"
+            aria-label="Cerrar"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
       </div>
+
+      {/* Scanned Toast Notification */}
+      {scannedToast && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-emerald-500 text-white px-5 py-2.5 rounded-full font-black text-xs shadow-2xl animate-bounce flex items-center gap-2">
+          <span>{scannedToast}</span>
+        </div>
+      )}
 
       {/* Video Scanner Area */}
       <div className="relative w-full max-w-md aspect-[3/4] mx-auto bg-slate-950 rounded-2xl overflow-hidden shadow-2xl border border-slate-800 flex items-center justify-center my-4">

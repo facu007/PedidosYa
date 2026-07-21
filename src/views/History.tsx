@@ -16,8 +16,11 @@ import {
   Info,
   ArrowUpDown,
   CheckCircle,
-  X
+  X,
+  Printer
 } from 'lucide-react';
+import { calculateSuggestedDiscount } from '../utils/discountCalculator';
+import { printProductLabel } from '../utils/labelPrinter';
 
 interface HistoryProps {
   onEditProduct: (id: string) => void;
@@ -40,7 +43,8 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
   const { playSuccess, playError, playWarning } = useAudio();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Sorting
+  // Sorting & Exact Location Filter
+  const [exactLocationFilter, setExactLocationFilter] = useState<string>('todos');
   const [sortField, setSortField] = useState<'code' | 'expiryDate' | 'addedDate'>('expiryDate');
   const [sortAsc, setSortAsc] = useState<boolean>(true);
 
@@ -112,8 +116,13 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
     }
   };
 
+  // Filter by exact location if selected
+  const baseProducts = exactLocationFilter === 'todos'
+    ? filteredProducts
+    : filteredProducts.filter(p => p.location === exactLocationFilter);
+
   // Sort displayed products
-  const sortedProducts = [...filteredProducts].sort((a, b) => {
+  const sortedProducts = [...baseProducts].sort((a, b) => {
     let comparison = 0;
     if (sortField === 'code') {
       comparison = a.code.localeCompare(b.code);
@@ -277,6 +286,23 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
             </div>
           </div>
 
+          {/* Exact Location Dropdown */}
+          <div className="flex flex-col gap-1.5 flex-1">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Heladera / Freezer Exacta</label>
+            <select
+              value={exactLocationFilter}
+              onChange={(e) => setExactLocationFilter(e.target.value)}
+              className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-slate-800 dark:text-slate-200 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] transition-all"
+            >
+              <option value="todos">Todas las unidades</option>
+              {Array.from(new Set(filteredProducts.map((p) => p.location))).sort().map((loc) => (
+                <option key={loc} value={loc}>
+                  {loc}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Status Filters */}
           <div className="flex flex-col gap-1.5 flex-1">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Estado de Vencimiento</label>
@@ -318,6 +344,7 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
                       </div>
                     </th>
                     <th className="p-4">Categoría</th>
+                    <th className="p-4">Cant. / Peso</th>
                     <th className="p-4">Ubicación</th>
                     <th onClick={() => toggleSort('addedDate')} className="p-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 select-none">
                       <div className="flex items-center gap-1.5">
@@ -332,6 +359,7 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
                       </div>
                     </th>
                     <th className="p-4">Estado</th>
+                    <th className="p-4">Descuento Sug.</th>
                     <th className="p-4">Control Martes</th>
                     <th className="p-4 text-right">Acciones</th>
                   </tr>
@@ -339,11 +367,23 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-700 text-sm font-semibold text-slate-800 dark:text-slate-200">
                   {sortedProducts.map((p) => {
                     const tControl = getTuesdayControlStatus(p);
+                    const discount = calculateSuggestedDiscount(p.expiryDate, p.costPrice);
                     return (
                       <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/10">
                         <td className="p-4 font-extrabold text-base">#{p.code}</td>
                         <td className="p-4">
                           {getCategoryBadge(p.category)}
+                        </td>
+                        <td className="p-4">
+                          {p.unit === 'kg' || p.weight ? (
+                            <span className="bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400 px-2 py-0.5 rounded text-xs font-extrabold border border-red-250 dark:border-red-500/20 whitespace-nowrap">
+                              ⚖️ {p.weight ? `${p.weight} Kg` : 'Por peso'} {p.quantity > 1 ? `(${p.quantity} pzs)` : ''}
+                            </span>
+                          ) : (
+                            <span className="bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-xs font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                              📦 {p.quantity || 1} un.
+                            </span>
+                          )}
                         </td>
                         <td className="p-4">
                           <span className="bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-xs font-bold text-slate-650 dark:text-slate-350">
@@ -357,6 +397,15 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
                           {new Date(p.expiryDate + 'T00:00:00').toLocaleDateString()}
                         </td>
                         <td className="p-4">{getStatusLabel(p.status)}</td>
+                        <td className="p-4">
+                          {discount.percentage > 0 ? (
+                            <span className={`px-2 py-0.5 rounded text-xs font-extrabold whitespace-nowrap ${discount.badgeClass}`}>
+                              {discount.label}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 text-xs font-medium">Regular</span>
+                          )}
+                        </td>
                         <td className="p-4">
                           <div className="flex flex-col gap-0.5">
                             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded w-fit flex items-center gap-1 ${
@@ -374,6 +423,13 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
                         </td>
                         <td className="p-4 text-right">
                           <div className="flex justify-end gap-1">
+                            <button
+                              onClick={() => printProductLabel(p)}
+                              className="p-2 text-slate-450 hover:text-slate-800 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                              title="Imprimir Etiqueta"
+                            >
+                              <Printer className="w-4 h-4" />
+                            </button>
                             <button
                               onClick={() => onEditProduct(p.id)}
                               className="p-2 text-slate-450 hover:text-slate-800 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"

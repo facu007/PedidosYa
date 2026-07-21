@@ -19,7 +19,9 @@ import {
   PieChart as PieIcon, 
   TrendingUp, 
   Calendar,
-  AlertCircle
+  AlertCircle,
+  DollarSign,
+  Award
 } from 'lucide-react';
 import { format, subDays } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -125,12 +127,56 @@ export const Statistics: React.FC = () => {
     { name: 'Vigentes', value: statusCounts.vigentes, color: '#22C55E' }, // Green
   ].filter(item => item.value > 0); // Only show statuses that have values
 
+  // 5. Financial Waste & Category Ranking
+  const discardedOrExpired = products.filter(p => p.isDiscarded || p.status === 'vencido');
+  const totalFinancialLoss = discardedOrExpired.reduce((sum, p) => sum + ((p.costPrice || 0) * (p.quantity || 1)), 0);
+  const activeStockValue = activeProducts.reduce((sum, p) => sum + ((p.costPrice || 0) * (p.quantity || 1)), 0);
+
+  const categoryWaste: Record<string, { count: number; totalCost: number }> = {};
+  discardedOrExpired.forEach((p) => {
+    const cat = p.category || 'general';
+    if (!categoryWaste[cat]) {
+      categoryWaste[cat] = { count: 0, totalCost: 0 };
+    }
+    categoryWaste[cat].count += p.quantity || 1;
+    categoryWaste[cat].totalCost += (p.costPrice || 0) * (p.quantity || 1);
+  });
+
+  const categoryWasteRanking = Object.keys(categoryWaste)
+    .map(cat => ({ category: cat, ...categoryWaste[cat] }))
+    .sort((a, b) => b.totalCost - a.totalCost || b.count - a.count);
+
   return (
     <div className="space-y-6">
       {/* Title */}
       <div>
-        <h2 className="text-2xl font-extrabold text-slate-850 dark:text-white">Panel de Estadísticas</h2>
-        <p className="text-xs text-slate-400 dark:text-slate-400 mt-0.5">Analíticas visuales sobre los vencimientos y el stock de la sucursal.</p>
+        <h2 className="text-2xl font-extrabold text-slate-850 dark:text-white">Panel de Estadísticas y Mermas</h2>
+        <p className="text-xs text-slate-400 dark:text-slate-400 mt-0.5">Analíticas visuales y métricas financieras de stock y vencimientos.</p>
+      </div>
+
+      {/* Financial Waste Summary KPI Banner */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-gradient-to-br from-red-500 to-rose-600 p-6 rounded-3xl text-white shadow-lg flex items-center justify-between">
+          <div>
+            <p className="text-xs uppercase font-extrabold tracking-wider text-white/80">Pérdida por Mermas / Descartes</p>
+            <p className="text-3xl font-black mt-1">${totalFinancialLoss.toFixed(2)}</p>
+            <p className="text-[11px] text-white/70 mt-1">{discardedOrExpired.length} productos vencidos / descartados</p>
+          </div>
+          <div className="p-3.5 bg-white/10 rounded-2xl backdrop-blur-sm">
+            <DollarSign className="w-8 h-8 text-white" />
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-emerald-600 to-teal-700 p-6 rounded-3xl text-white shadow-lg flex items-center justify-between">
+          <div>
+            <p className="text-xs uppercase font-extrabold tracking-wider text-white/80">Valor Total en Stock Activo</p>
+            <p className="text-3xl font-black mt-1">${activeStockValue.toFixed(2)}</p>
+            <p className="text-[11px] text-white/70 mt-1">{activeProducts.length} productos vigentes en sucursal</p>
+          </div>
+          <div className="p-3.5 bg-white/10 rounded-2xl backdrop-blur-sm">
+            <TrendingUp className="w-8 h-8 text-white" />
+          </div>
+        </div>
       </div>
 
       {activeProducts.length === 0 ? (
@@ -259,6 +305,34 @@ export const Statistics: React.FC = () => {
                 </BarChart>
               </ResponsiveContainer>
             </div>
+          </div>
+
+          {/* 5. Waste Ranking by Category */}
+          <div className="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm md:col-span-2">
+            <div className="flex items-center gap-2 mb-4">
+              <Award className="w-5 h-5 text-[#FF1744]" />
+              <h3 className="font-extrabold text-sm text-slate-800 dark:text-white">Ranking de Mermas y Pérdidas por Categoría</h3>
+            </div>
+
+            {categoryWasteRanking.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                {categoryWasteRanking.map((item, idx) => (
+                  <div key={item.category} className="p-4 bg-slate-50 dark:bg-slate-750 rounded-2xl border border-slate-100 dark:border-slate-700 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400">#{idx + 1} Categoría</span>
+                      <p className="font-extrabold text-sm text-slate-850 dark:text-white capitalize">{item.category}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">{item.count} unidades vencidas</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-black text-red-500">${item.totalCost.toFixed(2)}</p>
+                      <p className="text-[10px] text-slate-400">Pérdida est.</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400 italic">No hay registros de descartes o mermas con costo cargado.</p>
+            )}
           </div>
 
         </div>

@@ -176,6 +176,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const fullProduct: Product = {
       ...productData,
       quantity: productData.quantity ?? (existingProduct ? existingProduct.quantity : 1),
+      unit: productData.unit || (existingProduct ? existingProduct.unit : (productData.category === 'cárnicos' || productData.weight ? 'kg' : 'unidades')),
+      weight: productData.weight !== undefined ? productData.weight : (existingProduct ? existingProduct.weight : undefined),
       addedBy: existingProduct ? existingProduct.addedBy : operator,
       addedDate: productData.addedDate || (existingProduct ? existingProduct.addedDate : new Date().toISOString()),
       status,
@@ -218,9 +220,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const fullProduct: Product = {
           id: p.id || crypto.randomUUID(),
           code: p.code,
+          category: p.category,
           location: p.location,
           expiryDate: p.expiryDate,
           quantity: p.quantity ?? 1,
+          unit: p.unit || (p.category === 'cárnicos' || p.weight ? 'kg' : 'unidades'),
+          weight: p.weight,
           observations: p.observations || '',
           addedBy: operator,
           addedDate: new Date().toISOString(),

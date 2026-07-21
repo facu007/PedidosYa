@@ -7,6 +7,10 @@ export const exportProductsToExcel = (products: Product[]) => {
     'Código (Últimos 5 números)': p.code,
     'Categoría': p.category || 'general',
     'Ubicación': p.location,
+    'Unidad': p.unit || (p.weight ? 'kg' : 'unidades'),
+    'Cantidad (Piezas/Unidades)': p.quantity || 1,
+    'Peso (Kg)': p.weight !== undefined ? p.weight : '',
+    'Costo / Precio ($)': p.costPrice !== undefined ? p.costPrice : '',
     'Fecha de Registro': new Date(p.addedDate).toLocaleDateString(),
     'Fecha de Vencimiento': new Date(p.expiryDate + 'T00:00:00').toLocaleDateString(),
     'Registrado Por': p.addedBy,
@@ -63,6 +67,10 @@ export const parseProductsFromExcel = (file: File): Promise<Partial<Product>[]> 
           const locationVal = row['Ubicación'] || row['ubicacion'] || row['Location'] || '';
           let expiryVal = row['Fecha de Vencimiento'] || row['Vencimiento'] || row['vencimiento'] || row['Expiry Date'] || '';
           const obsVal = row['Observaciones'] || row['observaciones'] || row['Notes'] || '';
+          const unitVal = row['Unidad'] || row['unidad'] || row['Unit'] || '';
+          const qtyVal = row['Cantidad (Piezas/Unidades)'] || row['Cantidad'] || row['cantidad'] || row['Quantity'] || 1;
+          const weightVal = row['Peso (Kg)'] || row['Peso'] || row['peso'] || row['Weight'] || undefined;
+          const costVal = row['Costo / Precio ($)'] || row['Costo'] || row['costo'] || row['Precio'] || row['Cost'] || undefined;
 
           // Format code (ensure 5 digits string)
           const code = codeVal.toString().trim().slice(-5);
@@ -72,6 +80,14 @@ export const parseProductsFromExcel = (file: File): Promise<Partial<Product>[]> 
             ? rawCat as Product['category']
             : 'general';
           
+          const unit: Product['unit'] = unitVal.toString().trim().toLowerCase() === 'kg' 
+            || (category === 'cárnicos' && unitVal.toString().trim().toLowerCase() !== 'unidades') 
+            || weightVal ? 'kg' : 'unidades';
+
+          const weight = weightVal ? parseFloat(weightVal) : undefined;
+          const quantity = qtyVal ? parseInt(qtyVal, 10) || 1 : 1;
+          const costPrice = costVal ? parseFloat(costVal) : undefined;
+
           // Format expiry date
           let expiryDate = '';
           if (typeof expiryVal === 'number') {
@@ -97,6 +113,10 @@ export const parseProductsFromExcel = (file: File): Promise<Partial<Product>[]> 
             category,
             location: locationVal.toString().trim(),
             expiryDate,
+            unit,
+            weight,
+            quantity,
+            costPrice,
             observations: obsVal.toString().trim(),
           };
         }).filter(p => p.code && p.location && p.expiryDate); // Must have core fields

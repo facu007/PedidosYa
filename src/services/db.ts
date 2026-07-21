@@ -141,6 +141,10 @@ export const seedDB = async () => {
   const configStore = txConfig.store;
   const existingConfig = await configStore.get('settings');
   
+  const envUrl = import.meta.env.VITE_SUPABASE_URL;
+  const envAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  const hasEnvConfig = envUrl && envUrl !== 'YOUR_SUPABASE_URL' && envAnonKey && envAnonKey !== 'YOUR_SUPABASE_ANON_KEY';
+  
   if (!existingConfig) {
     await configStore.put({
       key: 'settings',
@@ -151,9 +155,22 @@ export const seedDB = async () => {
       alertDaysVegetales: 1,
       soundEnabled: true,
       theme: 'light',
-      syncEnabled: false,
-      syncProvider: 'firebase',
+      syncEnabled: hasEnvConfig,
+      syncProvider: hasEnvConfig ? 'supabase' : 'firebase',
+      supabaseConfig: hasEnvConfig ? {
+        url: envUrl,
+        anonKey: envAnonKey
+      } : undefined,
     });
+  } else if (hasEnvConfig && (!existingConfig.supabaseConfig?.url || existingConfig.supabaseConfig.url === 'YOUR_SUPABASE_URL')) {
+    // Update existing config with environment variables if Supabase wasn't configured yet
+    existingConfig.syncEnabled = true;
+    existingConfig.syncProvider = 'supabase';
+    existingConfig.supabaseConfig = {
+      url: envUrl,
+      anonKey: envAnonKey
+    };
+    await configStore.put(existingConfig);
   }
   await txConfig.done;
 };

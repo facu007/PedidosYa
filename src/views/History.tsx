@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { exportProductsToExcel, parseProductsFromExcel } from '../services/excel';
 import { exportProductsToPDF } from '../services/pdf';
 import { useAudio } from '../hooks/useAudio';
+import { getTuesdayControlStatus } from '../utils/tuesdayControl';
 import { 
   Search, 
   FileSpreadsheet, 
@@ -331,103 +332,140 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
                       </div>
                     </th>
                     <th className="p-4">Estado</th>
+                    <th className="p-4">Control Martes</th>
                     <th className="p-4 text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-700 text-sm font-semibold text-slate-800 dark:text-slate-200">
-                  {sortedProducts.map((p) => (
-                    <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/10">
-                      <td className="p-4 font-extrabold text-base">#{p.code}</td>
-                      <td className="p-4">
-                        {getCategoryBadge(p.category)}
-                      </td>
-                      <td className="p-4">
-                        <span className="bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-xs font-bold text-slate-650 dark:text-slate-350">
-                          {p.location}
-                        </span>
-                      </td>
-                      <td className="p-4 text-xs font-medium text-slate-400 dark:text-slate-450">
-                        {new Date(p.addedDate).toLocaleDateString()}
-                      </td>
-                      <td className="p-4 text-xs font-bold">
-                        {new Date(p.expiryDate + 'T00:00:00').toLocaleDateString()}
-                      </td>
-                      <td className="p-4">{getStatusLabel(p.status)}</td>
-                      <td className="p-4 text-right">
-                        <div className="flex justify-end gap-1">
-                          <button
-                            onClick={() => onEditProduct(p.id)}
-                            className="p-2 text-slate-450 hover:text-slate-800 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                            title="Editar"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          {isAdmin && (
+                  {sortedProducts.map((p) => {
+                    const tControl = getTuesdayControlStatus(p);
+                    return (
+                      <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/10">
+                        <td className="p-4 font-extrabold text-base">#{p.code}</td>
+                        <td className="p-4">
+                          {getCategoryBadge(p.category)}
+                        </td>
+                        <td className="p-4">
+                          <span className="bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-xs font-bold text-slate-650 dark:text-slate-350">
+                            {p.location}
+                          </span>
+                        </td>
+                        <td className="p-4 text-xs font-medium text-slate-400 dark:text-slate-450">
+                          {new Date(p.addedDate).toLocaleDateString()}
+                        </td>
+                        <td className="p-4 text-xs font-bold">
+                          {new Date(p.expiryDate + 'T00:00:00').toLocaleDateString()}
+                        </td>
+                        <td className="p-4">{getStatusLabel(p.status)}</td>
+                        <td className="p-4">
+                          <div className="flex flex-col gap-0.5">
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded w-fit flex items-center gap-1 ${
+                              tControl.isLoaded 
+                                ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-550/10 dark:text-emerald-400' 
+                                : 'bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400'
+                            }`}>
+                              <span className={`w-1 h-1 rounded-full ${tControl.isLoaded ? 'bg-emerald-500' : 'bg-orange-500'}`} />
+                              <span>{tControl.isLoaded ? 'Cargado' : 'Pendiente'}</span>
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">
+                              {tControl.label}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="p-4 text-right">
+                          <div className="flex justify-end gap-1">
                             <button
-                              onClick={() => triggerDelete(p.id)}
-                              className="p-2 text-slate-450 hover:text-[#FF1744] rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
-                              title="Eliminar"
+                              onClick={() => onEditProduct(p.id)}
+                              className="p-2 text-slate-450 hover:text-slate-800 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                              title="Editar"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Edit className="w-4 h-4" />
                             </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                            {isAdmin && (
+                              <button
+                                onClick={() => triggerDelete(p.id)}
+                                className="p-2 text-slate-450 hover:text-[#FF1744] rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                                title="Eliminar"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
 
-            {/* Mobile Card List View */}
             <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-700">
-              {sortedProducts.map((p) => (
-                <div key={p.id} className="p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="font-extrabold text-base text-slate-850 dark:text-white">#{p.code}</span>
-                      {getCategoryBadge(p.category)}
+              {sortedProducts.map((p) => {
+                const tControl = getTuesdayControlStatus(p);
+                return (
+                  <div key={p.id} className="p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-extrabold text-base text-slate-850 dark:text-white">#{p.code}</span>
+                        {getCategoryBadge(p.category)}
+                      </div>
+                      <span className="bg-slate-100 dark:bg-slate-750 px-2.5 py-0.5 rounded text-xs font-bold text-slate-650 dark:text-slate-350">
+                        {p.location}
+                      </span>
                     </div>
-                    <span className="bg-slate-100 dark:bg-slate-750 px-2.5 py-0.5 rounded text-xs font-bold text-slate-650 dark:text-slate-350">
-                      {p.location}
-                    </span>
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-xs text-slate-400 dark:text-slate-400 font-semibold">
-                    <div>
-                      <p className="text-[10px] uppercase font-bold text-slate-400/80">Cargado</p>
-                      <p className="mt-0.5 font-medium">{new Date(p.addedDate).toLocaleDateString()}</p>
+                    <div className="grid grid-cols-3 gap-2 text-xs text-slate-400 dark:text-slate-400 font-semibold">
+                      <div>
+                        <p className="text-[10px] uppercase font-bold text-slate-400/80">Cargado</p>
+                        <p className="mt-0.5 font-medium">{new Date(p.addedDate).toLocaleDateString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase font-bold text-slate-400/80">Vence</p>
+                        <p className="mt-0.5 font-bold text-slate-750 dark:text-slate-200">
+                          {new Date(p.expiryDate + 'T00:00:00').toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase font-bold text-slate-400/80">Control Martes</p>
+                        <span className={`mt-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded w-fit flex items-center gap-1 ${
+                          tControl.isLoaded 
+                            ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-555/10 dark:text-emerald-400' 
+                            : 'bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400'
+                        }`}>
+                          <span className={`w-1 h-1 rounded-full ${tControl.isLoaded ? 'bg-emerald-500' : 'bg-orange-500'}`} />
+                          <span>{tControl.isLoaded ? 'Cargado' : 'Pendiente'}</span>
+                        </span>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-[10px] uppercase font-bold text-slate-400/80">Vence</p>
-                      <p className="mt-0.5 font-bold text-slate-750 dark:text-slate-200">
-                        {new Date(p.expiryDate + 'T00:00:00').toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
 
-                  <div className="flex items-center justify-between pt-1">
-                    <div>{getStatusLabel(p.status)}</div>
-                    
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => onEditProduct(p.id)}
-                        className="p-2 text-slate-450 hover:text-slate-800 dark:hover:text-white rounded-lg bg-slate-50 dark:bg-slate-700/50"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      {isAdmin && (
+                    <div className="flex items-center justify-between pt-1">
+                      <div className="flex flex-col gap-0.5">
+                        <div>{getStatusLabel(p.status)}</div>
+                        <p className="text-[10px] text-slate-450 dark:text-slate-400 font-medium">
+                          {tControl.label}
+                        </p>
+                      </div>
+                      
+                      <div className="flex gap-1">
                         <button
-                          onClick={() => triggerDelete(p.id)}
-                          className="p-2 text-slate-450 hover:text-[#FF1744] rounded-lg bg-red-50/50 dark:bg-red-500/10"
+                          onClick={() => onEditProduct(p.id)}
+                          className="p-2 text-slate-450 hover:text-slate-800 dark:hover:text-white rounded-lg bg-slate-50 dark:bg-slate-700/50"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Edit className="w-4 h-4" />
                         </button>
-                      )}
+                        {isAdmin && (
+                          <button
+                            onClick={() => triggerDelete(p.id)}
+                            className="p-2 text-slate-450 hover:text-[#FF1744] rounded-lg bg-red-50/50 dark:bg-red-500/10"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </>
         ) : (

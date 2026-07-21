@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAudio } from '../hooks/useAudio';
+import { getTuesdayControlStatus } from '../utils/tuesdayControl';
 import { 
   Search, 
   MapPin, 
@@ -197,47 +198,66 @@ export const StockAdjustments: React.FC = () => {
                 <th className="py-3 px-5">Ubicación</th>
                 <th className="py-3 px-5">Fecha Vencimiento</th>
                 <th className="py-3 px-5 text-center">Cantidad</th>
+                <th className="py-3 px-5">Control Martes</th>
                 <th className="py-3 px-5 text-right">Acción</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-700 text-black dark:text-slate-200">
               {filteredProducts.length > 0 ? (
-                filteredProducts.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-750/30 transition-colors">
-                    <td className="py-4 px-5 font-bold text-sm text-slate-900 dark:text-white">#{p.code}</td>
-                    <td className="py-4 px-5 capitalize">
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
-                        {p.category || 'general'}
-                      </span>
-                    </td>
-                    <td className="py-4 px-5">
-                      <span className="flex items-center gap-1">
-                        <MapPin className="w-3.5 h-3.5 text-[#FF1744] shrink-0" />
-                        <span>{p.location}</span>
-                      </span>
-                    </td>
-                    <td className="py-4 px-5">
-                      <span className="flex items-center gap-1 font-bold text-slate-900 dark:text-slate-350">
-                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                        <span>{new Date(p.expiryDate + 'T00:00:00').toLocaleDateString()}</span>
-                      </span>
-                    </td>
-                    <td className="py-4 px-5 text-center font-extrabold text-base text-[#FF1744] dark:text-red-400">
-                      {p.quantity ?? 1}
-                    </td>
-                    <td className="py-4 px-5 text-right">
-                      <button
-                        onClick={() => handleOpenAdjustment(p)}
-                        className="py-1.5 px-3 bg-[#FF1744]/10 text-[#FF1744] hover:bg-[#FF1744]/20 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 rounded-lg text-xs font-bold transition-all cursor-pointer"
-                      >
-                        Ajustar Stock
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                filteredProducts.map((p) => {
+                  const tControl = getTuesdayControlStatus(p);
+                  return (
+                    <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-750/30 transition-colors">
+                      <td className="py-4 px-5 font-bold text-sm text-slate-900 dark:text-white">#{p.code}</td>
+                      <td className="py-4 px-5 capitalize">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                          {p.category || 'general'}
+                        </span>
+                      </td>
+                      <td className="py-4 px-5">
+                        <span className="flex items-center gap-1">
+                          <MapPin className="w-3.5 h-3.5 text-[#FF1744] shrink-0" />
+                          <span>{p.location}</span>
+                        </span>
+                      </td>
+                      <td className="py-4 px-5">
+                        <span className="flex items-center gap-1 font-bold text-slate-900 dark:text-slate-350">
+                          <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                          <span>{new Date(p.expiryDate + 'T00:00:00').toLocaleDateString()}</span>
+                        </span>
+                      </td>
+                      <td className="py-4 px-5 text-center font-extrabold text-base text-[#FF1744] dark:text-red-400">
+                        {p.quantity ?? 1}
+                      </td>
+                      <td className="py-4 px-5">
+                        <div className="flex flex-col gap-0.5">
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded w-fit flex items-center gap-1 ${
+                            tControl.isLoaded 
+                              ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-555/10 dark:text-emerald-400' 
+                              : 'bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400'
+                          }`}>
+                            <span className={`w-1 h-1 rounded-full ${tControl.isLoaded ? 'bg-emerald-500' : 'bg-orange-500'}`} />
+                            <span>{tControl.isLoaded ? 'Cargado' : 'Pendiente'}</span>
+                          </span>
+                          <span className="text-[10px] text-slate-450 dark:text-slate-400 font-medium whitespace-nowrap">
+                            {tControl.label}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-5 text-right">
+                        <button
+                          onClick={() => handleOpenAdjustment(p)}
+                          className="py-1.5 px-3 bg-[#FF1744]/10 text-[#FF1744] hover:bg-[#FF1744]/20 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                        >
+                          Ajustar Stock
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
-                  <td colSpan={6} className="py-10 text-center text-slate-400 dark:text-slate-500 font-medium">
+                  <td colSpan={7} className="py-10 text-center text-slate-400 dark:text-slate-500 font-medium">
                     No se encontraron productos activos en stock para los filtros aplicados.
                   </td>
                 </tr>
@@ -249,47 +269,66 @@ export const StockAdjustments: React.FC = () => {
         {/* Mobile Card List View */}
         <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-700">
           {filteredProducts.length > 0 ? (
-            filteredProducts.map((p) => (
-              <div key={p.id} className="p-4 space-y-3 font-semibold text-xs text-slate-800 dark:text-slate-200">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-sm text-slate-900 dark:text-white">#{p.code}</span>
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
-                    {p.category || 'general'}
-                  </span>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-2 text-xs text-slate-400 dark:text-slate-450">
-                  <div>
-                    <p className="text-[9px] uppercase font-bold text-slate-400/80">Ubicación</p>
-                    <p className="mt-0.5 flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-300">
-                      <MapPin className="w-3.5 h-3.5 text-[#FF1744] shrink-0" />
-                      <span>{p.location}</span>
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] uppercase font-bold text-slate-400/80">Vencimiento</p>
-                    <p className="mt-0.5 flex items-center gap-1 font-bold text-slate-700 dark:text-slate-300">
-                      <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                      <span>{new Date(p.expiryDate + 'T00:00:00').toLocaleDateString()}</span>
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] uppercase font-bold text-slate-400/80">Stock:</span>
-                    <span className="text-base font-black text-[#FF1744] dark:text-red-400">{p.quantity ?? 1}</span>
+            filteredProducts.map((p) => {
+              const tControl = getTuesdayControlStatus(p);
+              return (
+                <div key={p.id} className="p-4 space-y-3 font-semibold text-xs text-slate-800 dark:text-slate-200">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-sm text-slate-900 dark:text-white">#{p.code}</span>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                      {p.category || 'general'}
+                    </span>
                   </div>
                   
-                  <button
-                    onClick={() => handleOpenAdjustment(p)}
-                    className="py-1.5 px-3.5 bg-[#FF1744]/10 text-[#FF1744] hover:bg-[#FF1744]/20 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-sm"
-                  >
-                    Ajustar Stock
-                  </button>
+                  <div className="grid grid-cols-3 gap-2 text-xs text-slate-400 dark:text-slate-455">
+                    <div>
+                      <p className="text-[9px] uppercase font-bold text-slate-400/80">Ubicación</p>
+                      <p className="mt-0.5 flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-300">
+                        <MapPin className="w-3.5 h-3.5 text-[#FF1744] shrink-0" />
+                        <span>{p.location}</span>
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] uppercase font-bold text-slate-400/80">Vencimiento</p>
+                      <p className="mt-0.5 flex items-center gap-1 font-bold text-slate-700 dark:text-slate-300">
+                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                        <span>{new Date(p.expiryDate + 'T00:00:00').toLocaleDateString()}</span>
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] uppercase font-bold text-slate-400/80">Control</p>
+                      <span className={`mt-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded w-fit flex items-center gap-1 ${
+                        tControl.isLoaded 
+                          ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-555/10 dark:text-emerald-400' 
+                          : 'bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400'
+                      }`}>
+                        <span className={`w-1 h-1 rounded-full ${tControl.isLoaded ? 'bg-emerald-500' : 'bg-orange-500'}`} />
+                        <span>{tControl.isLoaded ? 'Cargado' : 'Pendiente'}</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <div className="flex flex-col gap-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] uppercase font-bold text-slate-400/80">Stock:</span>
+                        <span className="text-base font-black text-[#FF1744] dark:text-red-400">{p.quantity ?? 1}</span>
+                      </div>
+                      <span className="text-[10px] text-slate-450 dark:text-slate-400 font-medium">
+                        {tControl.label}
+                      </span>
+                    </div>
+                    
+                    <button
+                      onClick={() => handleOpenAdjustment(p)}
+                      className="py-1.5 px-3.5 bg-[#FF1744]/10 text-[#FF1744] hover:bg-[#FF1744]/20 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-sm"
+                    >
+                      Ajustar Stock
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           ) : (
             <div className="py-10 text-center text-slate-400 dark:text-slate-500 font-medium">
               No se encontraron productos activos en stock para los filtros aplicados.

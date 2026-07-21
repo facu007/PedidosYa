@@ -203,7 +203,10 @@ export const supabaseService = {
 
         if (local && !remote) {
           // Upload local user
-          usersToUpsert.push(local);
+          usersToUpsert.push({
+            ...local,
+            isDeleted: local.isDeleted ?? false
+          });
           changesCount++;
         } else if (!local && remote) {
           // Download remote user
@@ -217,7 +220,10 @@ export const supabaseService = {
 
           if (localTime > remoteTime) {
             // Local is newer: upload
-            usersToUpsert.push(local);
+            usersToUpsert.push({
+              ...local,
+              isDeleted: local.isDeleted ?? false
+            });
             changesCount++;
           } else if (remoteTime > localTime) {
             // Remote is newer: download

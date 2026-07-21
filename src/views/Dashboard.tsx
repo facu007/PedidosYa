@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow, differenceInCalendarDays, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { getTuesdayControlStatus, getNextTuesday } from '../utils/tuesdayControl';
 
 interface DashboardProps {
   setView: (view: string) => void;
@@ -31,6 +32,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
   const [showOnlyUpcoming, setShowOnlyUpcoming] = useState(false);
   const stats = getDashboardStats();
   const alerts = getAlerts();
+
+  // Tuesday Control calculations
+  const activeProductsForControl = products.filter(p => !p.isDiscarded);
+  const totalActiveControl = activeProductsForControl.length;
+  const loadedActiveControl = activeProductsForControl.filter(p => getTuesdayControlStatus(p).isLoaded).length;
+  const pendingActiveControl = totalActiveControl - loadedActiveControl;
+  const controlProgress = totalActiveControl > 0 ? Math.round((loadedActiveControl / totalActiveControl) * 100) : 100;
+  
+  const isTuesday = new Date().getDay() === 2;
+  const daysLeftToTuesday = differenceInCalendarDays(getNextTuesday(new Date()), startOfDay(new Date()));
 
   // Send local notifications when app opens / mounts on dashboard
   useEffect(() => {
@@ -57,10 +68,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
 
   return (
     <div className="space-y-6">
-      {/* Welcome & Alerts Section */}
-      <div className="flex flex-col md:flex-row gap-4 items-stretch">
+      {/* Welcome, Alerts & Tuesday Control Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
         {/* Welcome Box */}
-        <div className="flex-1 bg-gradient-to-r from-[#FF1744] to-red-650 p-6 rounded-3xl text-white shadow-lg flex flex-col justify-between">
+        <div className="bg-gradient-to-r from-[#FF1744] to-red-650 p-6 rounded-3xl text-white shadow-lg flex flex-col justify-between">
           <div>
             <h2 className="text-2xl font-extrabold mb-1">¡Hola, Sucursal!</h2>
             <p className="text-white/80 text-xs font-medium">Control de stock refrigerado de PedidosYa.</p>
@@ -78,7 +89,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
 
         {/* Actionable Alerts Panel */}
         {(alerts.vencidosCount > 0 || alerts.hoyCount > 0 || alerts.mananaCount > 0) ? (
-          <div className="flex-1 bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between">
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between">
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <AlertTriangle className="w-5 h-5 text-red-500" />
@@ -87,19 +98,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
               <div className="space-y-2">
                 {alerts.vencidosCount > 0 && (
                   <div className="flex items-center gap-2 text-xs font-semibold text-red-600 dark:text-red-400">
-                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
                     <span>⚠️ Hay {alerts.vencidosCount} {alerts.vencidosCount === 1 ? 'producto vencido' : 'productos vencidos'}.</span>
                   </div>
                 )}
                 {alerts.hoyCount > 0 && (
                   <div className="flex items-center gap-2 text-xs font-semibold text-yellow-600 dark:text-yellow-400">
-                    <span className="w-2 h-2 rounded-full bg-yellow-500" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
                     <span>⚠️ Hay {alerts.hoyCount} {alerts.hoyCount === 1 ? 'producto que vence' : 'productos que vencen'} hoy.</span>
                   </div>
                 )}
                 {alerts.mananaCount > 0 && (
                   <div className="flex items-center gap-2 text-xs font-semibold text-orange-600 dark:text-orange-400">
-                    <span className="w-2 h-2 rounded-full bg-orange-500" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-orange-500" />
                     <span>⚠️ Hay {alerts.mananaCount} {alerts.mananaCount === 1 ? 'producto que vence' : 'productos que vencen'} mañana.</span>
                   </div>
                 )}
@@ -110,12 +121,56 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
             </div>
           </div>
         ) : (
-          <div className="flex-1 bg-green-50 dark:bg-green-950/20 p-6 rounded-3xl border border-green-100 dark:border-green-900/30 flex flex-col justify-center items-center text-center">
+          <div className="bg-green-50 dark:bg-green-950/20 p-6 rounded-3xl border border-green-100 dark:border-green-900/30 flex flex-col justify-center items-center text-center">
             <CheckCircle className="w-10 h-10 text-green-500 mb-2" />
             <h4 className="font-bold text-sm text-green-800 dark:text-green-400">¡Todo al día!</h4>
             <p className="text-xs text-green-650 dark:text-green-450 mt-1 max-w-xs">No hay productos vencidos ni próximos a vencer hoy.</p>
           </div>
         )}
+
+        {/* Tuesday Control Card */}
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Calendar className="w-5 h-5 text-[#FF1744]" />
+              <h3 className="font-extrabold text-sm text-slate-850 dark:text-white">Martes de Control</h3>
+            </div>
+            
+            <div className="space-y-3">
+              {isTuesday ? (
+                <div className="p-3 bg-red-50 dark:bg-red-550/10 border border-red-100 dark:border-red-550/20 rounded-xl text-[11px] font-bold text-[#FF1744] dark:text-red-400 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-[#FF1744] animate-ping" />
+                  <span>¡Hoy es martes de control general!</span>
+                </div>
+              ) : (
+                <div className="p-3 bg-slate-50 dark:bg-slate-750/50 border border-slate-100 dark:border-slate-700 rounded-xl text-[11px] font-semibold text-slate-600 dark:text-slate-350">
+                  Próximo control: <span className="font-bold text-[#FF1744] dark:text-red-450">el martes</span> (en {daysLeftToTuesday} {daysLeftToTuesday === 1 ? 'día' : 'días'}).
+                </div>
+              )}
+
+              {/* Progress bar */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-[10px] uppercase font-bold text-slate-400">
+                  <span>Progreso de carga</span>
+                  <span>{loadedActiveControl} / {totalActiveControl} ({controlProgress}%)</span>
+                </div>
+                <div className="w-full bg-slate-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full transition-all duration-500 ${isTuesday && controlProgress < 100 ? 'bg-[#FF1744]' : 'bg-emerald-500'}`} 
+                    style={{ width: `${controlProgress}%` }} 
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="text-[10px] text-slate-400 dark:text-slate-400 mt-4 italic font-medium">
+            {pendingActiveControl > 0 
+              ? `Faltan verificar ${pendingActiveControl} producto${pendingActiveControl === 1 ? '' : 's'} esta semana.`
+              : '¡Todos los productos verificados para esta semana!'
+            }
+          </div>
+        </div>
       </div>
 
       {/* KPI Cards Grid */}
@@ -218,6 +273,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
         {displayedProducts.length > 0 ? (
           <div className="divide-y divide-slate-100 dark:divide-slate-700 max-h-[500px] overflow-y-auto pr-1">
             {displayedProducts.map((product) => {
+              const tControl = getTuesdayControlStatus(product);
               const dateDiff = differenceInCalendarDays(
                 startOfDay(new Date(product.expiryDate + 'T00:00:00')), 
                 startOfDay(new Date())
@@ -241,16 +297,29 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
                         <span className="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 font-bold px-2 py-0.5 rounded">
                           {product.location}
                         </span>
+                        {/* Tuesday Control Badge */}
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1 ${
+                          tControl.isLoaded 
+                            ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-550/10 dark:text-emerald-400' 
+                            : 'bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400'
+                        }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${tControl.isLoaded ? 'bg-emerald-500' : 'bg-orange-500'}`} />
+                          <span>{tControl.isLoaded ? 'Cargado' : 'Pendiente'}</span>
+                        </span>
                       </div>
                       
                       {/* Sub-details */}
-                      <div className="flex items-center gap-3 text-xs text-slate-400 dark:text-slate-400 mt-1">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400 dark:text-slate-400 mt-1">
                         <span className="flex items-center gap-1">
                           <Calendar className="w-3.5 h-3.5" />
                           <span>Vence: {new Date(product.expiryDate + 'T00:00:00').toLocaleDateString()}</span>
                         </span>
                         <span>•</span>
                         <span>Cargado por: {product.addedBy}</span>
+                        <span>•</span>
+                        <span className={`font-semibold ${tControl.isLoaded ? 'text-slate-400' : 'text-orange-500 font-bold'}`}>
+                          {tControl.label}
+                        </span>
                       </div>
                       
                       {product.observations && (

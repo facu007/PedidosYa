@@ -29,12 +29,17 @@ export const Settings: React.FC = () => {
   const { playSuccess, playError } = useAudio();
   const isAdmin = currentUser?.role === 'admin';
 
+  // Env vars fallback for Supabase
+  const envSupabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const envSupabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  const hasEnvSupabase = !!(envSupabaseUrl && envSupabaseUrl !== 'YOUR_SUPABASE_URL' && envSupabaseAnonKey && envSupabaseAnonKey !== 'YOUR_SUPABASE_ANON_KEY');
+
   // Local state for Sync Configuration
-  const [syncProvider, setSyncProvider] = useState<'firebase' | 'supabase'>(config.syncProvider || 'firebase');
+  const [syncProvider, setSyncProvider] = useState<'firebase' | 'supabase'>(config.syncProvider || (hasEnvSupabase ? 'supabase' : 'firebase'));
   const [apiKey, setApiKey] = useState(config.firebaseConfig?.apiKey || '');
   const [projectId, setProjectId] = useState(config.firebaseConfig?.projectId || '');
-  const [supabaseUrl, setSupabaseUrl] = useState(config.supabaseConfig?.url || '');
-  const [supabaseAnonKey, setSupabaseAnonKey] = useState(config.supabaseConfig?.anonKey || '');
+  const [supabaseUrl, setSupabaseUrl] = useState(config.supabaseConfig?.url || (hasEnvSupabase ? envSupabaseUrl : ''));
+  const [supabaseAnonKey, setSupabaseAnonKey] = useState(config.supabaseConfig?.anonKey || (hasEnvSupabase ? envSupabaseAnonKey : ''));
   const [syncEnabled, setSyncEnabled] = useState(config.syncEnabled);
   const [syncStatus, setSyncStatus] = useState<{ success: boolean; message: string } | null>(null);
   const [syncing, setSyncing] = useState(false);
@@ -566,8 +571,16 @@ export const Settings: React.FC = () => {
 
                 {syncProvider === 'supabase' && (
                   <>
+                    {hasEnvSupabase && (
+                      <div className="p-3 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 rounded-xl text-[10px] text-emerald-650 dark:text-emerald-400 font-semibold mb-2 flex items-center gap-1.5">
+                        <Database className="w-3.5 h-3.5" />
+                        <span>Credenciales cargadas desde el archivo de entorno (.env).</span>
+                      </div>
+                    )}
                     <div>
-                      <label className="block font-bold text-black dark:text-slate-400 uppercase tracking-wider mb-1">Supabase URL</label>
+                      <label className="block font-bold text-black dark:text-slate-400 uppercase tracking-wider mb-1">
+                        Supabase URL {hasEnvSupabase && <span className="text-[9px] text-emerald-500 font-bold lowercase">(de .env)</span>}
+                      </label>
                       <input
                         type="text"
                         value={supabaseUrl}
@@ -578,7 +591,9 @@ export const Settings: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block font-bold text-black dark:text-slate-400 uppercase tracking-wider mb-1">Supabase Anon Key</label>
+                      <label className="block font-bold text-black dark:text-slate-400 uppercase tracking-wider mb-1">
+                        Supabase Anon Key {hasEnvSupabase && <span className="text-[9px] text-emerald-500 font-bold lowercase">(de .env)</span>}
+                      </label>
                       <input
                         type="password"
                         value={supabaseAnonKey}
@@ -594,11 +609,14 @@ export const Settings: React.FC = () => {
                   <input
                     type="checkbox"
                     id="sync-enabled"
-                    checked={syncEnabled}
+                    disabled={hasEnvSupabase}
+                    checked={hasEnvSupabase ? true : syncEnabled}
                     onChange={(e) => setSyncEnabled(e.target.checked)}
-                    className="w-4 h-4 accent-[#FF1744] rounded border-slate-350"
+                    className="w-4 h-4 accent-[#FF1744] rounded border-slate-350 disabled:opacity-50"
                   />
-                  <label htmlFor="sync-enabled" className="font-bold text-black dark:text-slate-300">Habilitar auto-sincronización</label>
+                  <label htmlFor="sync-enabled" className="font-bold text-black dark:text-slate-300">
+                    Habilitar auto-sincronización {hasEnvSupabase && <span className="text-[10px] text-emerald-500 font-bold lowercase">(siempre activa por .env)</span>}
+                  </label>
                 </div>
               </div>
 

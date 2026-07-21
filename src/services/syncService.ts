@@ -9,7 +9,13 @@ export const syncService = {
   },
 
   async syncData(config: AppConfig): Promise<SyncResult> {
-    if (!config.syncEnabled) {
+    const envUrl = import.meta.env.VITE_SUPABASE_URL;
+    const envAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    const hasEnvSupabase = !!(envUrl && envUrl !== 'YOUR_SUPABASE_URL' && envAnonKey && envAnonKey !== 'YOUR_SUPABASE_ANON_KEY');
+
+    const isSyncEnabled = config.syncEnabled || hasEnvSupabase;
+
+    if (!isSyncEnabled) {
       return {
         success: false,
         message: 'La sincronización automática está desactivada.',
@@ -27,7 +33,7 @@ export const syncService = {
       };
     }
 
-    const provider = config.syncProvider || 'firebase';
+    const provider = hasEnvSupabase ? 'supabase' : (config.syncProvider || 'firebase');
 
     if (provider === 'firebase') {
       if (!config.firebaseConfig || !config.firebaseConfig.apiKey || !config.firebaseConfig.projectId) {
@@ -40,7 +46,11 @@ export const syncService = {
       }
       return firebaseService.syncData(config.firebaseConfig);
     } else if (provider === 'supabase') {
-      if (!config.supabaseConfig || !config.supabaseConfig.url || !config.supabaseConfig.anonKey) {
+      const finalSupabaseConfig = hasEnvSupabase
+        ? { url: envUrl, anonKey: envAnonKey }
+        : config.supabaseConfig;
+
+      if (!finalSupabaseConfig || !finalSupabaseConfig.url || !finalSupabaseConfig.anonKey) {
         return {
           success: false,
           message: 'Supabase no está configurado. Ingrese las credenciales en Configuración.',
@@ -48,7 +58,7 @@ export const syncService = {
           syncedCount: 0,
         };
       }
-      return supabaseService.syncData(config.supabaseConfig);
+      return supabaseService.syncData(finalSupabaseConfig);
     }
 
     return {

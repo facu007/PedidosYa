@@ -158,6 +158,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     initLoad();
   }, []);
 
+  // Synchronize theme with DOM globally
+  useEffect(() => {
+    if (config.theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [config.theme]);
+
   const saveProduct = async (productData: Omit<Product, 'status' | 'isDiscarded' | 'addedBy'> & { addedDate?: string }) => {
     const operator = user?.username || 'sistema';
     const status = calculateProductStatus(productData.expiryDate, productData.category, config);

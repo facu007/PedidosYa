@@ -49,21 +49,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, 
   const toggleTheme = () => {
     const newTheme = config.theme === 'light' ? 'dark' : 'light';
     saveConfig({ ...config, theme: newTheme });
-    if (newTheme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
   };
-
-  // Sync theme class on mount
-  React.useEffect(() => {
-    if (config.theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [config.theme]);
 
   // Handle PWA installation prompts
   React.useEffect(() => {

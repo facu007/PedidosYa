@@ -2,7 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { Product } from './db';
 
-export const exportProductsToPDF = (products: Product[]) => {
+export const exportProductsToPDF = (products: Product[], locationFilterName?: string) => {
   const doc = new jsPDF();
   const dateStr = new Date().toLocaleDateString();
 
@@ -23,6 +23,12 @@ export const exportProductsToPDF = (products: Product[]) => {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.text(`Fecha del Reporte: ${dateStr}`, 15, 40);
+
+  if (locationFilterName) {
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Ubicación / LBI: ${locationFilterName}`, 120, 40);
+    doc.setFont('helvetica', 'normal');
+  }
 
   // Expiry Statistics Summary
   const expiredCount = products.filter(p => p.status === 'vencido' && !p.isDiscarded).length;
@@ -53,7 +59,7 @@ export const exportProductsToPDF = (products: Product[]) => {
   // Generate Table
   autoTable(doc, {
     startY: 56,
-    head: [['Código (Últimos 5)', 'Ubicación', 'Vencimiento', 'Estado', 'Observaciones']],
+    head: [['Código de Barras', 'Ubicación', 'Vencimiento', 'Estado', 'Observaciones']],
     body: tableRows,
     headStyles: {
       fillColor: [255, 23, 68], // Red #FF1744
@@ -68,7 +74,7 @@ export const exportProductsToPDF = (products: Product[]) => {
       cellPadding: 3
     },
     columnStyles: {
-      0: { cellWidth: 35 },
+      0: { cellWidth: 40 },
       1: { cellWidth: 35 },
       2: { cellWidth: 30 },
       3: { cellWidth: 35 },
@@ -84,7 +90,8 @@ export const exportProductsToPDF = (products: Product[]) => {
     }
   });
 
-  doc.save(`reporte_vencimientos_${new Date().toISOString().slice(0, 10)}.pdf`);
+  const locSuffix = locationFilterName ? `_${locationFilterName.replace(/[^a-zA-Z0-9]/g, '_')}` : '';
+  doc.save(`reporte_vencimientos${locSuffix}_${new Date().toISOString().slice(0, 10)}.pdf`);
 };
 
 const mapStatusToText = (status: string): string => {

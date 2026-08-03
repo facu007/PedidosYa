@@ -17,6 +17,7 @@ import {
   MapPin, 
   CalendarDays,
   Plus,
+  Minus,
   Tag,
   Scale,
   DollarSign
@@ -104,6 +105,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
   const selectedCategory = watch('category');
   const selectedUnit = watch('unit');
   const codeValue = watch('code');
+  const currentQuantity = watch('quantity') || 1;
+
+  const handleStepQuantity = (delta: number) => {
+    const nextVal = Math.max(1, (typeof currentQuantity === 'number' && !isNaN(currentQuantity) ? currentQuantity : 1) + delta);
+    setValue('quantity', nextVal);
+  };
 
   // Find duplicate or existing product by code
   const duplicateProduct = products.find(
@@ -277,21 +284,35 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
                 <p className="text-xs text-red-500 font-semibold mt-1.5">{errors.code.message}</p>
               )}
 
-              {/* Duplicate code alert with fast load & edit button */}
+              {/* Duplicate code alert with fast load, quick +1 & edit button */}
               {duplicateProduct && (
                 <div className="p-3.5 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-300 dark:border-emerald-500/30 rounded-xl text-xs space-y-2 mt-2">
-                  <div className="flex items-center justify-between font-extrabold text-emerald-800 dark:text-emerald-300">
+                  <div className="flex items-center justify-between font-extrabold text-emerald-800 dark:text-emerald-300 flex-wrap gap-2">
                     <div className="flex items-center gap-1.5">
-                      <CheckCircle className="w-4 h-4 text-emerald-500" />
+                      <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
                       <span>¡Producto ya existe en inventario!</span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => loadProductValues(duplicateProduct)}
-                      className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer shadow-sm"
-                    >
-                      Cargar datos actuales
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          loadProductValues(duplicateProduct);
+                          setValue('quantity', (duplicateProduct.quantity || 1) + 1);
+                        }}
+                        className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer shadow-sm flex items-center gap-1"
+                        title="Sumar 1 unidad al producto existente"
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>+1 Unidad</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => loadProductValues(duplicateProduct)}
+                        className="px-2.5 py-1 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 rounded-lg text-[10px] font-bold transition-all cursor-pointer"
+                      >
+                        Cargar datos
+                      </button>
+                    </div>
                   </div>
                   <p className="text-slate-600 dark:text-slate-350 text-[11px] leading-relaxed">
                     Registrado en <span className="font-bold text-slate-800 dark:text-white">{duplicateProduct.location}</span> con fecha <span className="font-bold text-slate-800 dark:text-white">{new Date(duplicateProduct.expiryDate + 'T00:00:00').toLocaleDateString()}</span> ({duplicateProduct.quantity || 1} un.). Puedes modificar la fecha y la cantidad a continuación.
@@ -414,12 +435,30 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
                     <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-350 uppercase tracking-wider mb-1">
                       Bultos / Piezas
                     </label>
-                    <input
-                      type="number"
-                      min={1}
-                      {...register('quantity', { valueAsNumber: true })}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] transition-all text-sm font-semibold"
-                    />
+                    <div className="flex gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleStepQuantity(-1)}
+                        className="px-2.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl font-extrabold text-sm transition-all cursor-pointer"
+                        title="Restar 1"
+                      >
+                        <Minus className="w-3.5 h-3.5" />
+                      </button>
+                      <input
+                        type="number"
+                        min={1}
+                        {...register('quantity', { valueAsNumber: true })}
+                        className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-black dark:text-white text-center focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] transition-all text-sm font-semibold"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleStepQuantity(1)}
+                        className="px-2.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl font-extrabold text-sm transition-all cursor-pointer"
+                        title="Sumar 1"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -427,12 +466,30 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
                   <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-350 uppercase tracking-wider mb-1">
                     Cantidad (Unidades)
                   </label>
-                  <input
-                    type="number"
-                    min={1}
-                    {...register('quantity', { valueAsNumber: true })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] transition-all text-sm font-semibold"
-                  />
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => handleStepQuantity(-1)}
+                      className="px-3 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl font-extrabold text-sm transition-all cursor-pointer"
+                      title="Restar 1"
+                    >
+                      <Minus className="w-4 h-4" />
+                    </button>
+                    <input
+                      type="number"
+                      min={1}
+                      {...register('quantity', { valueAsNumber: true })}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-black dark:text-white text-center focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] transition-all text-sm font-semibold"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleStepQuantity(1)}
+                      className="px-3 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl font-extrabold text-sm transition-all cursor-pointer"
+                      title="Sumar 1"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
                   {errors.quantity && (
                     <p className="text-xs text-red-500 font-semibold mt-1">{errors.quantity.message}</p>
                   )}

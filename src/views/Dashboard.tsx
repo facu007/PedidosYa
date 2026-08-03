@@ -10,7 +10,8 @@ import {
   Trash2,
   CheckCircle,
   AlertTriangle,
-  Printer
+  Printer,
+  Bell
 } from 'lucide-react';
 import { formatDistanceToNow, differenceInCalendarDays, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -34,7 +35,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
     setFilterStatusType
   } = useApp();
   
-  const { checkAndNotifyUpcomingExpirations } = useNotifications();
+  const { permission, requestPermission, checkAndNotifyUpcomingExpirations } = useNotifications();
   const [showOnlyUpcoming, setShowOnlyUpcoming] = useState(false);
   const stats = getDashboardStats();
   const alerts = getAlerts();
@@ -74,6 +75,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
 
   return (
     <div className="space-y-6">
+      {/* Push Notification Enable Banner */}
+      {permission === 'default' && (
+        <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white p-4 rounded-3xl shadow-md border border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-3 animate-fade-in">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-[#FF1744]/20 text-[#FF1744] rounded-2xl shrink-0">
+              <Bell className="w-5 h-5 animate-bounce" />
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-white">Activa las alertas diarias de vencimiento</h4>
+              <p className="text-[11px] text-slate-300">Recibe notificaciones automáticas cada mañana en el turno de apertura sobre productos por vencer.</p>
+            </div>
+          </div>
+          <button
+            onClick={requestPermission}
+            className="px-4 py-2.5 bg-[#FF1744] hover:bg-red-600 text-white font-extrabold text-xs rounded-xl transition-all shrink-0 cursor-pointer shadow-sm flex items-center gap-1.5"
+          >
+            <span>🔔 Activar Alertas</span>
+          </button>
+        </div>
+      )}
+
       {/* Welcome, Alerts & Tuesday Control Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
         {/* Welcome Box */}

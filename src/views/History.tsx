@@ -91,12 +91,14 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
   };
 
   const handleExportExcel = () => {
-    exportProductsToExcel(filteredProducts);
+    const locTag = exactLocationFilter !== 'todos' ? exactLocationFilter : undefined;
+    exportProductsToExcel(filteredProducts, locTag);
     playSuccess();
   };
 
   const handleExportPDF = () => {
-    exportProductsToPDF(filteredProducts);
+    const locTag = exactLocationFilter !== 'todos' ? exactLocationFilter : undefined;
+    exportProductsToPDF(filteredProducts, locTag);
     playSuccess();
   };
 
@@ -357,7 +359,7 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
                   <tr className="bg-slate-50 dark:bg-slate-750 border-b border-slate-200 dark:border-slate-700 text-slate-400 uppercase text-[10px] font-bold tracking-wider">
                     <th onClick={() => toggleSort('code')} className="p-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 select-none">
                       <div className="flex items-center gap-1.5">
-                        <span>Código (Últimos 5)</span>
+                        <span>Código de Barras</span>
                         <ArrowUpDown className="w-3.5 h-3.5" />
                       </div>
                     </th>

@@ -1,10 +1,10 @@
 import * as XLSX from 'xlsx';
 import type { Product } from './db';
 
-export const exportProductsToExcel = (products: Product[]) => {
+export const exportProductsToExcel = (products: Product[], locationFilterName?: string) => {
   // Map products to a user-friendly format for Excel
   const dataToExport = products.map((p) => ({
-    'Código (Últimos 5 números)': p.code,
+    'Código de Barras': p.code,
     'Categoría': p.category || 'general',
     'Ubicación': p.location,
     'Unidad': p.unit || (p.weight ? 'kg' : 'unidades'),
@@ -20,7 +20,8 @@ export const exportProductsToExcel = (products: Product[]) => {
 
   const worksheet = XLSX.utils.json_to_sheet(dataToExport);
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Historial de Productos');
+  const sheetName = locationFilterName ? `Ubicación ${locationFilterName}`.slice(0, 31) : 'Historial de Productos';
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
   // Auto-fit column widths
   const maxLengths = dataToExport.reduce((acc, row) => {
@@ -37,7 +38,8 @@ export const exportProductsToExcel = (products: Product[]) => {
 
   // Generate Excel file and trigger download
   const dateStr = new Date().toISOString().slice(0, 10);
-  XLSX.writeFile(workbook, `vencimientos_pedidosya_${dateStr}.xlsx`);
+  const locSuffix = locationFilterName ? `_${locationFilterName.replace(/[^a-zA-Z0-9]/g, '_')}` : '';
+  XLSX.writeFile(workbook, `vencimientos_pedidosya${locSuffix}_${dateStr}.xlsx`);
 };
 
 export const parseProductsFromExcel = (file: File): Promise<Partial<Product>[]> => {

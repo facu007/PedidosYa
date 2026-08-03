@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { syncService } from '../services/syncService';
 import { useAudio } from '../hooks/useAudio';
+import { useNotifications } from '../hooks/useNotifications';
 import { dbService } from '../services/db';
 import { 
   Settings as SettingsIcon, 
@@ -20,12 +21,14 @@ import {
   UserPlus,
   Trash2,
   Eye,
-  EyeOff
+  EyeOff,
+  Bell
 } from 'lucide-react';
 
 export const Settings: React.FC = () => {
   const { user: currentUser, users, createUser, deleteUser } = useAuth();
   const { config, saveConfig, auditLogs, products, refreshData } = useApp();
+  const { permission, requestPermission, sendLocalNotification } = useNotifications();
   const { playSuccess, playError } = useAudio();
   const isAdmin = currentUser?.role === 'admin';
 
@@ -125,7 +128,7 @@ export const Settings: React.FC = () => {
       link.download = `backup_pedidosya_${new Date().toISOString().slice(0, 10)}.json`;
       link.click();
       playSuccess();
-    } catch (e) {
+    } catch {
       playError();
       alert('Error al generar la copia de seguridad.');
     }
@@ -422,7 +425,7 @@ export const Settings: React.FC = () => {
             <div className="flex items-center justify-between py-2">
               <div>
                 <p className="text-xs font-bold text-black dark:text-slate-300 uppercase tracking-wider">Sonidos de la App</p>
-                <p className="text-[10px] text-slate-900 dark:text-slate-400 font-semibold">Confirmación y alertas</p>
+                <p className="text-[10px] text-slate-900 dark:text-slate-400 font-semibold font-semibold">Confirmación y alertas</p>
               </div>
               <button
                 disabled={!isAdmin}
@@ -435,6 +438,54 @@ export const Settings: React.FC = () => {
               >
                 {config.soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
               </button>
+            </div>
+
+            {/* Push Notifications Block */}
+            <div className="border-t border-slate-100 dark:border-slate-700 pt-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold text-black dark:text-slate-350 uppercase tracking-wider flex items-center gap-1.5">
+                    <Bell className="w-3.5 h-3.5 text-[#FF1744]" />
+                    <span>Notificaciones Push</span>
+                  </p>
+                  <p className="text-[10px] text-slate-900 dark:text-slate-400 font-semibold">
+                    Estado: <span className="font-bold">{permission === 'granted' ? '🟢 Habilitadas' : permission === 'denied' ? '🔴 Bloqueadas' : '🟡 Sin solicitar'}</span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 pt-1">
+                {permission !== 'granted' && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const ok = await requestPermission();
+                      if (ok) playSuccess(); else playError();
+                    }}
+                    className="w-full py-2 px-3 bg-[#FF1744] text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
+                  >
+                    Activar Permisos de Notificación
+                  </button>
+                )}
+                
+                <button
+                  type="button"
+                  onClick={() => {
+                    sendLocalNotification(
+                      '🔔 Notificación de Prueba - PedidosYa',
+                      '¡Las notificaciones push del control de vencimientos están activas!'
+                    );
+                    playSuccess();
+                  }}
+                  className="w-full py-2 px-3 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-650 transition-all cursor-pointer border border-slate-200 dark:border-slate-600"
+                >
+                  🧪 Probador de Notificación Push
+                </button>
+
+                <p className="text-[10px] text-amber-700 dark:text-amber-300 font-semibold bg-amber-50 dark:bg-amber-500/10 p-2.5 rounded-xl border border-amber-200 dark:border-amber-500/20 leading-relaxed">
+                  🍏 <strong>Para usuarios de Apple (iPhone / iPad)</strong>: Las notificaciones Push en iOS funcionan desde iOS 16.4+. Requiere añadir la app a la pantalla de inicio (Menú Compartir de Safari -&gt; <em>Añadir a pantalla de inicio</em>).
+                </p>
+              </div>
             </div>
 
             {/* System Updates check */}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { Product } from '../services/db';
 
 export const useNotifications = () => {
@@ -26,7 +26,7 @@ export const useNotifications = () => {
     }
   };
 
-  const sendLocalNotification = async (title: string, body: string) => {
+  const sendLocalNotification = useCallback(async (title: string, body: string) => {
     if (!('Notification' in window) || Notification.permission !== 'granted') {
       return;
     }
@@ -49,7 +49,7 @@ export const useNotifications = () => {
       console.warn('Could not send notification via service worker, falling back to standard notification:', e);
     }
 
-    // Fallback: Standard browser notification (requires page to be active/running, works when minimized on some desktops)
+    // Fallback: Standard browser notification
     try {
       new Notification(title, {
         body,
@@ -58,20 +58,30 @@ export const useNotifications = () => {
     } catch (e) {
       console.error('Error triggering standard notification:', e);
     }
-  };
+  }, []);
 
-  // Helper to run expiry scan and alert the user
-  const checkAndNotifyUpcomingExpirations = (products: Product[]) => {
+  // Helper to run expiry scan and alert the user (throttled per session/counts)
+  const checkAndNotifyUpcomingExpirations = useCallback((products: Product[]) => {
     const active = products.filter(p => !p.isDiscarded);
     const vencidos = active.filter(p => p.status === 'vencido');
     const hoy = active.filter(p => p.status === 'vence_hoy');
     const manana = active.filter(p => p.status === 'vence_manana');
+
+    const currentCounts = `${vencidos.length}-${hoy.length}-${manana.length}`;
+    const lastNotifiedSession = sessionStorage.getItem('pya_last_notified_counts');
+
+    if (lastNotifiedSession === currentCounts) {
+      return;
+    }
+
+    let notified = false;
 
     if (vencidos.length > 0) {
       sendLocalNotification(
         '🔴 Atención: Alerta de Vencimiento',
         `Hay ${vencidos.length} producto${vencidos.length > 1 ? 's' : ''} vencido${vencidos.length > 1 ? 's' : ''} en stock. ¡Requiere retiro inmediato!`
       );
+      notified = true;
     }
 
     if (hoy.length > 0) {
@@ -79,13 +89,19 @@ export const useNotifications = () => {
         '🟡 Atención: Control Diario',
         `Hay ${hoy.length} producto${hoy.length > 1 ? 's' : ''} que vence${hoy.length > 1 ? 'n' : ''} hoy.`
       );
+      notified = true;
     } else if (manana.length > 0) {
       sendLocalNotification(
         '🟠 Atención: Control Diario',
         `Hay ${manana.length} producto${manana.length > 1 ? 's' : ''} que vence${manana.length > 1 ? 'n' : ''} mañana.`
       );
+      notified = true;
     }
-  };
+
+    if (notified) {
+      sessionStorage.setItem('pya_last_notified_counts', currentCounts);
+    }
+  }, [sendLocalNotification]);
 
   return {
     permission,

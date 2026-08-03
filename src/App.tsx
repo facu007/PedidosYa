@@ -34,7 +34,7 @@ export const App: React.FC = () => {
       }
     };
     seed();
-  }, []);
+  }, [refreshData]);
 
   const handleEditProduct = (id: string) => {
     setEditingProductId(id);

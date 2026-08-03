@@ -6,9 +6,18 @@ import { Camera, X, RefreshCw, AlertTriangle } from 'lucide-react';
 interface BarcodeScannerProps {
   onScanSuccess: (code: string) => void;
   onClose: () => void;
+  title?: string;
+  subtitle?: string;
+  mode?: 'product' | 'text';
 }
 
-export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose }) => {
+export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
+  onScanSuccess,
+  onClose,
+  title = 'Escanear Código de Barras',
+  subtitle = 'Ubica el código de barras dentro del recuadro',
+  mode = 'product'
+}) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
@@ -16,6 +25,18 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, o
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const { playScan, playError } = useAudio();
+
+  const onScanSuccessRef = useRef(onScanSuccess);
+  const onCloseRef = useRef(onClose);
+  const playScanRef = useRef(playScan);
+  const playErrorRef = useRef(playError);
+
+  useEffect(() => {
+    onScanSuccessRef.current = onScanSuccess;
+    onCloseRef.current = onClose;
+    playScanRef.current = playScan;
+    playErrorRef.current = playError;
+  });
 
   useEffect(() => {
     // Configure hints to search strictly for 1D barcodes
@@ -72,7 +93,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, o
       } catch (err: any) {
         console.error('Error listing cameras:', err);
         setError('Error al acceder a los dispositivos de cámara. Por favor verifica los permisos.');
-        playError();
+        playErrorRef.current();
         setLoading(false);
       }
     };
@@ -113,32 +134,38 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, o
       (result, _err) => {
         if (result) {
           const text = result.getText();
-          // Extract last 5 digits of scanned barcode
-          const last5 = text.replace(/\D/g, '').slice(-5);
+          let scannedCode = text.trim();
+          if (mode === 'product') {
+            scannedCode = text.replace(/\D/g, '').slice(-5);
+          } else {
+            scannedCode = scannedCode.toUpperCase();
+          }
           const now = Date.now();
 
-          // Debounce 1.5s for same code in continuous mode
-          if (last5) {
-            if (last5 === lastCodeRef.current && (now - lastScanTimeRef.current) < 1500) {
+          if (scannedCode) {
+            if (scannedCode === lastCodeRef.current && (now - lastScanTimeRef.current) < 1500) {
               return;
             }
             
-            lastCodeRef.current = last5;
+            lastCodeRef.current = scannedCode;
             lastScanTimeRef.current = now;
-            setScannedToast(`¡Código #${last5} Escaneado!`);
-            playScan();
-            onScanSuccess(last5);
+            const toastMessage = mode === 'product' 
+              ? `¡Código #${scannedCode} Escaneado!` 
+              : `¡Ubicación "${scannedCode}" Escaneada!`;
+            setScannedToast(toastMessage);
+            playScanRef.current();
+            onScanSuccessRef.current(scannedCode);
 
             setTimeout(() => {
               setScannedToast(null);
             }, 1800);
 
             if (!isContinuousMode) {
-              onClose();
+              onCloseRef.current();
             }
           } else {
-            // Scanned something but no numbers
-            playError();
+            // Scanned something but invalid format
+            playErrorRef.current();
           }
         }
       }
@@ -206,7 +233,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, o
       <div className="flex items-center justify-between text-white w-full max-w-md mx-auto">
         <div className="flex items-center gap-2">
           <Camera className="w-5 h-5 text-[#FF1744]" />
-          <h3 className="font-bold text-sm">Escanear Código de Barras</h3>
+          <h3 className="font-bold text-sm">{title}</h3>
         </div>
         
         <div className="flex items-center gap-2">
@@ -292,8 +319,8 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, o
               <div className="absolute left-1 right-1 top-1/2 h-0.5 bg-[#FF1744] animate-pulse shadow-[0_0_8px_#FF1744]" />
             </div>
             
-            <p className="text-white text-xs font-semibold mt-6 px-4 py-2 bg-slate-900/80 rounded-full backdrop-blur-sm uppercase tracking-wide">
-              Ubica el código de barras dentro del recuadro
+            <p className="text-white text-xs font-semibold mt-6 px-4 py-2 bg-slate-900/80 rounded-full backdrop-blur-sm uppercase tracking-wide text-center">
+              {subtitle}
             </p>
           </div>
         )}

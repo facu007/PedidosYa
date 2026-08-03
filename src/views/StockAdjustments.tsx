@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAudio } from '../hooks/useAudio';
 import { getTuesdayControlStatus } from '../utils/tuesdayControl';
+import type { Product } from '../services/db';
 import { 
   Search, 
   MapPin, 
@@ -23,7 +24,7 @@ export const StockAdjustments: React.FC = () => {
   const [filterLocation, setFilterLocation] = useState('todos');
 
   // Adjustment Modal State
-  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [adjustmentType, setAdjustmentType] = useState<'faltante' | 'sobrante'>('faltante');
   const [adjustmentQuantity, setAdjustmentQuantity] = useState(1);
   const [adjustmentReason, setAdjustmentReason] = useState('Diferencia de conteo');
@@ -69,7 +70,7 @@ export const StockAdjustments: React.FC = () => {
     return matchesSearch && matchesLocation;
   });
 
-  const handleOpenAdjustment = (product: any) => {
+  const handleOpenAdjustment = (product: Product) => {
     setSelectedProduct(product);
     setAdjustmentType('faltante');
     setAdjustmentQuantity(1);

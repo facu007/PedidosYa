@@ -15,7 +15,6 @@ import {
 import { formatDistanceToNow, differenceInCalendarDays, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { getTuesdayControlStatus, getNextTuesday } from '../utils/tuesdayControl';
-import { calculateSuggestedDiscount } from '../utils/discountCalculator';
 import { printProductLabel } from '../utils/labelPrinter';
 
 interface DashboardProps {
@@ -55,7 +54,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
     if (products.length > 0) {
       checkAndNotifyUpcomingExpirations(products);
     }
-  }, [products]);
+  }, [products, checkAndNotifyUpcomingExpirations]);
 
   // Handle viewing upcoming expirations in main history
   const handleViewUpcomingInHistory = () => {
@@ -296,7 +295,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
                 startOfDay(new Date(product.expiryDate + 'T00:00:00')), 
                 startOfDay(new Date())
               );
-              const discount = calculateSuggestedDiscount(product.expiryDate, product.costPrice);
               
               return (
                 <div key={product.id} className="py-4 flex items-center justify-between gap-4 group hover:bg-slate-50/50 dark:hover:bg-slate-700/10 px-2 rounded-xl transition-all">
@@ -334,12 +332,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
                           <span className={`w-1.5 h-1.5 rounded-full ${tControl.isLoaded ? 'bg-emerald-500' : 'bg-orange-500'}`} />
                           <span>{tControl.isLoaded ? 'Cargado' : 'Pendiente'}</span>
                         </span>
-                        {/* Suggested Discount Badge */}
-                        {discount.percentage > 0 && (
-                          <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded ${discount.badgeClass}`}>
-                            {discount.label}
-                          </span>
-                        )}
                       </div>
                       
                       {/* Sub-details */}

@@ -96,7 +96,7 @@ export const parseProductsFromExcel = (file: File): Promise<Partial<Product>[]> 
             expiryDate = date.toISOString().slice(0, 10);
           } else if (expiryVal) {
             // String date: check if it's DD/MM/YYYY or YYYY-MM-DD
-            const parts = expiryVal.toString().split(/[\/\-]/);
+            const parts = expiryVal.toString().split(/[/-]/);
             if (parts.length === 3) {
               if (parts[0].length === 4) {
                 // YYYY-MM-DD

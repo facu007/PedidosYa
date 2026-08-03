@@ -44,7 +44,7 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 // Helper to calculate product status
-export const calculateProductStatus = (
+const calculateProductStatus = (
   expiryDateStr: string,
   category?: string,
   config?: AppConfig

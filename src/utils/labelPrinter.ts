@@ -1,8 +1,6 @@
 import type { Product } from '../services/db';
-import { calculateSuggestedDiscount } from './discountCalculator';
 
 export const printProductLabel = (product: Product) => {
-  const discount = calculateSuggestedDiscount(product.expiryDate, product.costPrice);
   const printWindow = window.open('', '_blank', 'width=450,height=600');
   
   if (!printWindow) {
@@ -86,15 +84,6 @@ export const printProductLabel = (product: Product) => {
           font-size: 22px;
           font-weight: 900;
         }
-        .discount-badge {
-          background: #FF1744;
-          color: #fff;
-          font-size: 14px;
-          font-weight: bold;
-          padding: 5px;
-          border-radius: 4px;
-          margin-top: 6px;
-        }
         .footer {
           font-size: 9px;
           color: #555;
@@ -123,8 +112,6 @@ export const printProductLabel = (product: Product) => {
           <div class="expiry-title">FECHA DE VENCIMIENTO</div>
           <div class="expiry-date">${expiryFormatted}</div>
         </div>
-
-        ${discount.percentage > 0 ? `<div class="discount-badge">SUGERENCIA: ${discount.label}</div>` : ''}
 
         <div class="footer">
           Cargado el ${addedFormatted} por ${product.addedBy}

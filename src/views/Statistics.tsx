@@ -60,7 +60,7 @@ export const Statistics: React.FC = () => {
       const date = new Date(p.expiryDate + 'T00:00:00');
       const monthName = format(date, 'MMMM', { locale: es });
       monthlyCounts[monthName] = (monthlyCounts[monthName] || 0) + 1;
-    } catch (e) {
+    } catch {
       // fallback
     }
   });
@@ -98,7 +98,7 @@ export const Statistics: React.FC = () => {
       if (dailyCounts[addedDay] !== undefined) {
         dailyCounts[addedDay]++;
       }
-    } catch (e) {
+    } catch {
       // ignore
     }
   });

@@ -20,7 +20,6 @@ import {
   Scale,
   DollarSign
 } from 'lucide-react';
-import { calculateSuggestedDiscount } from '../utils/discountCalculator';
 
 interface ProductFormProps {
   isOpen: boolean;
@@ -62,7 +61,7 @@ const productSchema = z.object({
     .length(5, 'El código debe tener exactamente 5 dígitos.')
     .regex(/^\d+$/, 'Solo se permiten números.'),
   category: z.enum(['cárnicos', 'embutidos', 'lácteos', 'vegetales', 'general']),
-  location: z.string().min(1, 'Seleccione una ubicación.'),
+  location: z.string().min(1, 'Seleccione o ingrese una ubicación.'),
   expiryDate: z.string().min(1, 'Seleccione una fecha de vencimiento.'),
   addedDate: z.string().min(1, 'Seleccione una fecha de carga.'),
   observations: z.string().optional(),
@@ -77,7 +76,7 @@ type ProductFormValues = z.infer<typeof productSchema>;
 export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, productIdToEdit }) => {
   const { saveProduct, products } = useApp();
   const { playSuccess, playError } = useAudio();
-  const [showScanner, setShowScanner] = useState(false);
+  const [scannerMode, setScannerMode] = useState<'code' | 'location' | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
 
   const {
@@ -105,9 +104,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
 
   const selectedCategory = watch('category');
   const selectedUnit = watch('unit');
-  const selectedExpiry = watch('expiryDate');
-  const selectedCost = watch('costPrice');
-  const liveDiscount = calculateSuggestedDiscount(selectedExpiry, selectedCost);
 
   // Auto switch unit to 'kg' when selecting 'cárnicos' if creating a new product
   useEffect(() => {
@@ -154,6 +150,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
 
   const onSubmit = async (values: ProductFormValues) => {
     try {
+      const weightVal = values.unit === 'kg' && values.weight !== undefined && values.weight !== null && !isNaN(values.weight) ? values.weight : undefined;
+      const costVal = values.costPrice !== undefined && values.costPrice !== null && !isNaN(values.costPrice) ? values.costPrice : undefined;
+      const quantityVal = values.quantity && !isNaN(values.quantity) && values.quantity >= 1 ? values.quantity : 1;
+
       await saveProduct({
         id: productIdToEdit || crypto.randomUUID(),
         code: values.code,
@@ -162,10 +162,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
         expiryDate: values.expiryDate,
         addedDate: new Date(values.addedDate + 'T12:00:00').toISOString(),
         observations: values.observations,
-        quantity: values.quantity,
+        quantity: quantityVal,
         unit: values.unit,
-        weight: values.unit === 'kg' ? values.weight : undefined,
-        costPrice: values.costPrice,
+        weight: weightVal,
+        costPrice: costVal,
       });
       playSuccess();
       setShowConfirmation(true);
@@ -176,8 +176,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
   };
 
   const handleScanSuccess = (scannedCode: string) => {
-    setValue('code', scannedCode);
-    setShowScanner(false);
+    if (scannerMode === 'code') {
+      setValue('code', scannedCode);
+    } else if (scannerMode === 'location') {
+      setValue('location', scannedCode);
+    }
+    setScannerMode(null);
   };
 
   const handleFinishedConfirmation = () => {
@@ -246,8 +250,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
 
                 <button
                   type="button"
-                  onClick={() => setShowScanner(true)}
-                  className="px-4 py-3 bg-[#FF1744]/10 text-[#FF1744] hover:bg-[#FF1744]/20 rounded-xl transition-all flex items-center gap-1.5 font-bold text-xs"
+                  onClick={() => setScannerMode('code')}
+                  className="px-4 py-3 bg-[#FF1744]/10 text-[#FF1744] hover:bg-[#FF1744]/20 rounded-xl transition-all flex items-center gap-1.5 font-bold text-xs cursor-pointer"
                 >
                   <Camera className="w-4 h-4" />
                   <span className="hidden sm:inline">Escanear</span>
@@ -293,22 +297,39 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
               )}
             </div>
 
-            {/* Location selector */}
+            {/* Location input with LBI Scanner option */}
             <div>
               <label className="block text-xs font-bold text-[#000000] dark:text-slate-450 uppercase tracking-wider mb-2 flex items-center gap-1">
                 <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                <span>Ubicación</span>
+                <span>Ubicación / LBI</span>
               </label>
-              <select
-                {...register('location')}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] transition-all text-sm font-semibold"
-              >
-                {locations.map((loc) => (
-                  <option key={loc} value={loc}>
-                    {loc}
-                  </option>
-                ))}
-              </select>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    list="locations-list"
+                    placeholder="Ej. Heladera 1 o LBI-H01"
+                    {...register('location')}
+                    className={`w-full px-4 py-3 rounded-xl border ${
+                      errors.location ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'
+                    } bg-slate-50 dark:bg-slate-750 text-black dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] transition-all text-sm font-semibold`}
+                  />
+                  <datalist id="locations-list">
+                    {locations.map((loc) => (
+                      <option key={loc} value={loc} />
+                    ))}
+                  </datalist>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setScannerMode('location')}
+                  className="px-4 py-3 bg-[#FF1744]/10 text-[#FF1744] hover:bg-[#FF1744]/20 rounded-xl transition-all flex items-center gap-1.5 font-bold text-xs shrink-0 cursor-pointer"
+                  title="Escanear código de ubicación (LBI)"
+                >
+                  <Camera className="w-4 h-4" />
+                  <span className="hidden sm:inline">Escanear LBI</span>
+                </button>
+              </div>
               {errors.location && (
                 <p className="text-xs text-red-500 font-semibold mt-1.5">{errors.location.message}</p>
               )}
@@ -434,41 +455,20 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
               </div>
             </div>
 
-            {/* Cost & Live Suggested Discount */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-500 dark:text-slate-450 uppercase tracking-wider mb-2 flex items-center gap-1">
-                  <DollarSign className="w-3.5 h-3.5 text-emerald-500" />
-                  <span>Costo / Precio Estimado ($)</span>
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="Ej: 450.00"
-                  {...register('costPrice', { valueAsNumber: true })}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] transition-all text-sm font-semibold"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-500 dark:text-slate-450 uppercase tracking-wider mb-2 flex items-center gap-1">
-                  <Tag className="w-3.5 h-3.5 text-[#FF1744]" />
-                  <span>Descuento Sugerido (Martes)</span>
-                </label>
-                <div className="h-[46px] flex items-center px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-750 font-bold text-sm">
-                  {liveDiscount.percentage > 0 ? (
-                    <span className={`px-3 py-1 rounded-lg text-xs font-extrabold flex items-center gap-1.5 ${liveDiscount.badgeClass}`}>
-                      <span>{liveDiscount.label}</span>
-                      {liveDiscount.savingsPerUnit && (
-                        <span className="text-[10px] opacity-90">(-${liveDiscount.savingsPerUnit.toFixed(2)})</span>
-                      )}
-                    </span>
-                  ) : (
-                    <span className="text-slate-400 text-xs">Sin descuento (Precio regular)</span>
-                  )}
-                </div>
-              </div>
+            {/* Cost field */}
+            <div>
+              <label className="block text-xs font-bold text-slate-500 dark:text-slate-450 uppercase tracking-wider mb-2 flex items-center gap-1">
+                <DollarSign className="w-3.5 h-3.5 text-emerald-500" />
+                <span>Costo / Precio Estimado ($)</span>
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="Ej: 450.00"
+                {...register('costPrice', { valueAsNumber: true })}
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] transition-all text-sm font-semibold"
+              />
             </div>
 
             {/* Observations (optional) */}
@@ -509,10 +509,13 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
       </div>
 
       {/* Camera barcode scanner modal overlay */}
-      {showScanner && (
+      {scannerMode && (
         <BarcodeScanner
           onScanSuccess={handleScanSuccess}
-          onClose={() => setShowScanner(false)}
+          onClose={() => setScannerMode(null)}
+          mode={scannerMode === 'location' ? 'text' : 'product'}
+          title={scannerMode === 'location' ? 'Escanear Ubicación (LBI)' : 'Escanear Código de Producto'}
+          subtitle={scannerMode === 'location' ? 'Ubica el código de ubicación (LBI) dentro del recuadro' : 'Ubica el código de barras del producto dentro del recuadro'}
         />
       )}
 

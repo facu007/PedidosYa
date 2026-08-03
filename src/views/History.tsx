@@ -19,7 +19,6 @@ import {
   X,
   Printer
 } from 'lucide-react';
-import { calculateSuggestedDiscount } from '../utils/discountCalculator';
 import { printProductLabel } from '../utils/labelPrinter';
 
 interface HistoryProps {
@@ -378,7 +377,6 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
                       </div>
                     </th>
                     <th className="p-4">Estado</th>
-                    <th className="p-4">Descuento Sug.</th>
                     <th className="p-4">Control Martes</th>
                     <th className="p-4 text-right">Acciones</th>
                   </tr>
@@ -386,7 +384,6 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-700 text-sm font-semibold text-slate-800 dark:text-slate-200">
                   {sortedProducts.map((p) => {
                     const tControl = getTuesdayControlStatus(p);
-                    const discount = calculateSuggestedDiscount(p.expiryDate, p.costPrice);
                     return (
                       <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/10">
                         <td className="p-4 font-extrabold text-base">#{p.code}</td>
@@ -416,15 +413,6 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
                           {new Date(p.expiryDate + 'T00:00:00').toLocaleDateString()}
                         </td>
                         <td className="p-4">{getStatusLabel(p.status)}</td>
-                        <td className="p-4">
-                          {discount.percentage > 0 ? (
-                            <span className={`px-2 py-0.5 rounded text-xs font-extrabold whitespace-nowrap ${discount.badgeClass}`}>
-                              {discount.label}
-                            </span>
-                          ) : (
-                            <span className="text-slate-400 text-xs font-medium">Regular</span>
-                          )}
-                        </td>
                         <td className="p-4">
                           <div className="flex flex-col gap-0.5">
                             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded w-fit flex items-center gap-1 ${

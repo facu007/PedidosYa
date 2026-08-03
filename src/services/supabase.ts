@@ -86,7 +86,7 @@ export const supabaseService = {
       const productsToDelete: string[] = [];
       const logsToInsert: AuditLog[] = [];
       const usersToUpsert: User[] = [];
-      let configToUpsert: any = null;
+      let configToUpsert: Partial<AppConfig> | null = null;
 
       let localUpdatesNeeded = false;
       const localProductsToPut: Product[] = [];

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { dbService } from '../services/db';
 import type { Product, AppConfig, AuditLog } from '../services/db';
 import { useAuth } from './AuthContext';
@@ -92,7 +92,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [filterLocationType, setFilterLocationType] = useState<'todos' | 'heladera' | 'freezer'>('todos');
   const [filterStatusType, setFilterStatusType] = useState<'todos' | 'vigentes' | 'proximos' | 'vencidos'>('todos');
 
-  const refreshData = async (showSpinner = true) => {
+  const refreshData = useCallback(async (showSpinner = true) => {
     if (showSpinner) setLoading(true);
     try {
       const dbConfig = await dbService.getConfig();
@@ -121,7 +121,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } finally {
       if (showSpinner) setLoading(false);
     }
-  };
+  }, []);
 
   // Helper for background sync
   const triggerBackgroundSync = async (currentConfig?: AppConfig) => {

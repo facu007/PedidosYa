@@ -179,7 +179,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
         codeReaderRef.current.reset();
       }
     };
-  }, [selectedDevice, loading, isContinuousMode]);
+  }, [selectedDevice, loading, isContinuousMode, mode]);
 
   const switchCamera = () => {
     if (devices.length <= 1) return;

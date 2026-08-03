@@ -22,18 +22,23 @@ export const App: React.FC = () => {
 
   // Seed DB on startup
   useEffect(() => {
+    let isMounted = true;
     const seed = async () => {
       try {
         await seedDB();
-        setDbSeeded(true);
-        // Refresh data to load seeded configs into context
-        await refreshData();
+        if (isMounted) {
+          setDbSeeded(true);
+          await refreshData();
+        }
       } catch (err) {
         console.error('Error seeding DB:', err);
-        setDbSeeded(true); // Proceed anyway to avoid locking
+        if (isMounted) setDbSeeded(true); // Proceed anyway to avoid locking
       }
     };
     seed();
+    return () => {
+      isMounted = false;
+    };
   }, [refreshData]);
 
   const handleEditProduct = (id: string) => {

@@ -67,8 +67,8 @@ const productSchema = z.object({
   observations: z.string().optional(),
   unit: z.enum(['unidades', 'kg']),
   quantity: z.number().min(1, 'La cantidad debe ser al menos 1.'),
-  weight: z.number().optional(),
-  costPrice: z.number().optional(),
+  weight: z.number().optional().or(z.nan()),
+  costPrice: z.number().optional().or(z.nan()),
 });
 
 type ProductFormValues = z.infer<typeof productSchema>;
@@ -123,7 +123,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
         setValue('category', prod.category || 'general');
         setValue('location', prod.location);
         setValue('expiryDate', prod.expiryDate);
-        setValue('addedDate', prod.addedDate.split('T')[0]);
+        setValue('addedDate', prod.addedDate ? prod.addedDate.split('T')[0] : new Date().toISOString().split('T')[0]);
         setValue('observations', prod.observations || '');
         setValue('unit', prod.unit || (prod.category === 'cárnicos' || prod.weight ? 'kg' : 'unidades'));
         setValue('quantity', prod.quantity || 1);
@@ -154,13 +154,16 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
       const costVal = values.costPrice !== undefined && values.costPrice !== null && !isNaN(values.costPrice) ? values.costPrice : undefined;
       const quantityVal = values.quantity && !isNaN(values.quantity) && values.quantity >= 1 ? values.quantity : 1;
 
+      const addedDateObj = values.addedDate ? new Date(values.addedDate.includes('T') ? values.addedDate : values.addedDate + 'T12:00:00') : new Date();
+      const addedDateISO = isNaN(addedDateObj.getTime()) ? new Date().toISOString() : addedDateObj.toISOString();
+
       await saveProduct({
         id: productIdToEdit || crypto.randomUUID(),
         code: values.code,
         category: values.category,
         location: values.location,
         expiryDate: values.expiryDate,
-        addedDate: new Date(values.addedDate + 'T12:00:00').toISOString(),
+        addedDate: addedDateISO,
         observations: values.observations,
         quantity: quantityVal,
         unit: values.unit,

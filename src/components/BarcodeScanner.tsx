@@ -135,9 +135,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
         if (result) {
           const text = result.getText();
           let scannedCode = text.trim();
-          if (mode === 'product') {
-            scannedCode = text.replace(/\D/g, '').slice(-5);
-          } else {
+          if (mode !== 'product') {
             scannedCode = scannedCode.toUpperCase();
           }
           const now = Date.now();
@@ -337,8 +335,8 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
             <span>Rotar Cámara ({devices.length})</span>
           </button>
         )}
-        <p className="text-slate-400 text-xs mt-2 px-6">
-          Se leerán los números automáticamente. Si hay problemas, cierra el escáner y escribe los últimos 5 dígitos a mano.
+        <p className="text-slate-400 text-xs mt-2 px-6 text-center">
+          Se leerán los códigos automáticamente. Si hay problemas, cierra el escáner y escribe el código a mano.
         </p>
       </div>
     </div>

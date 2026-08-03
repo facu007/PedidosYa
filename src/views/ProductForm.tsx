@@ -6,12 +6,13 @@ import { useApp } from '../context/AppContext';
 import { useAudio } from '../hooks/useAudio';
 import { BarcodeScanner } from '../components/BarcodeScanner';
 import { ConfirmationAnimation } from '../components/ConfirmationAnimation';
+import type { Product } from '../services/db';
 import { 
   X, 
   Camera, 
   Save, 
   AlertCircle, 
-  AlertTriangle,
+  CheckCircle,
   FileText, 
   MapPin, 
   CalendarDays,
@@ -57,9 +58,7 @@ const locations = [
 ];
 
 const productSchema = z.object({
-  code: z.string()
-    .length(5, 'El código debe tener exactamente 5 dígitos.')
-    .regex(/^\d+$/, 'Solo se permiten números.'),
+  code: z.string().min(1, 'Ingrese o escanee el código del producto.'),
   category: z.enum(['cárnicos', 'embutidos', 'lácteos', 'vegetales', 'general']),
   location: z.string().min(1, 'Seleccione o ingrese una ubicación.'),
   expiryDate: z.string().min(1, 'Seleccione una fecha de vencimiento.'),
@@ -104,6 +103,27 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
 
   const selectedCategory = watch('category');
   const selectedUnit = watch('unit');
+  const codeValue = watch('code');
+
+  // Find duplicate or existing product by code
+  const duplicateProduct = products.find(
+    (p) => p.code && codeValue && p.code.trim() === codeValue.trim() && !p.isDiscarded && p.id !== productIdToEdit
+  );
+
+  const loadProductValues = (prod: Product) => {
+    setValue('code', prod.code);
+    setValue('category', prod.category || 'general');
+    setValue('location', prod.location);
+    setValue('expiryDate', prod.expiryDate);
+    if (prod.addedDate) {
+      setValue('addedDate', prod.addedDate.split('T')[0]);
+    }
+    setValue('observations', prod.observations || '');
+    setValue('unit', prod.unit || (prod.category === 'cárnicos' || prod.weight ? 'kg' : 'unidades'));
+    setValue('quantity', prod.quantity || 1);
+    setValue('weight', prod.weight);
+    setValue('costPrice', prod.costPrice);
+  };
 
   // Auto switch unit to 'kg' when selecting 'cárnicos' if creating a new product
   useEffect(() => {
@@ -119,16 +139,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
     if (productIdToEdit) {
       const prod = products.find((p) => p.id === productIdToEdit);
       if (prod) {
-        setValue('code', prod.code);
-        setValue('category', prod.category || 'general');
-        setValue('location', prod.location);
-        setValue('expiryDate', prod.expiryDate);
-        setValue('addedDate', prod.addedDate ? prod.addedDate.split('T')[0] : new Date().toISOString().split('T')[0]);
-        setValue('observations', prod.observations || '');
-        setValue('unit', prod.unit || (prod.category === 'cárnicos' || prod.weight ? 'kg' : 'unidades'));
-        setValue('quantity', prod.quantity || 1);
-        setValue('weight', prod.weight);
-        setValue('costPrice', prod.costPrice);
+        loadProductValues(prod);
       }
     } else {
       reset({
@@ -157,9 +168,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
       const addedDateObj = values.addedDate ? new Date(values.addedDate.includes('T') ? values.addedDate : values.addedDate + 'T12:00:00') : new Date();
       const addedDateISO = isNaN(addedDateObj.getTime()) ? new Date().toISOString() : addedDateObj.toISOString();
 
+      const targetId = productIdToEdit || (duplicateProduct ? duplicateProduct.id : crypto.randomUUID());
+
       await saveProduct({
-        id: productIdToEdit || crypto.randomUUID(),
-        code: values.code,
+        id: targetId,
+        code: values.code.trim(),
         category: values.category,
         location: values.location,
         expiryDate: values.expiryDate,
@@ -180,9 +193,14 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
 
   const handleScanSuccess = (scannedCode: string) => {
     if (scannerMode === 'code') {
-      setValue('code', scannedCode);
+      const cleanCode = scannedCode.trim();
+      setValue('code', cleanCode);
+      const existing = products.find(p => p.code && p.code.trim() === cleanCode && !p.isDiscarded);
+      if (existing) {
+        loadProductValues(existing);
+      }
     } else if (scannerMode === 'location') {
-      setValue('location', scannedCode);
+      setValue('location', scannedCode.trim());
     }
     setScannerMode(null);
   };
@@ -192,17 +210,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
     onClose();
   };
 
-  // Watch for character changes in code input to block non-numbers
-  const codeValue = watch('code');
   const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, '').slice(0, 5);
+    const value = e.target.value.trim();
     setValue('code', value);
   };
 
-  // Duplicate product check
-  const duplicateProduct = products.find(
-    (p) => p.code === codeValue && !p.isDiscarded && p.id !== productIdToEdit
-  );
+  const isEditingExisting = Boolean(productIdToEdit || duplicateProduct);
 
   return (
     <>
@@ -213,7 +226,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
           <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-[#FF1744] text-white">
             <h3 className="font-extrabold text-lg flex items-center gap-2">
               <Plus className="w-5 h-5" />
-              <span>{productIdToEdit ? 'Editar Producto' : 'Agregar Producto'}</span>
+              <span>{isEditingExisting ? 'Editar Producto' : 'Agregar Producto'}</span>
             </h3>
             <button
               onClick={onClose}
@@ -230,7 +243,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
             {/* Code Field with Scanner option */}
             <div>
               <label className="block text-xs font-bold text-slate-500 dark:text-slate-450 uppercase tracking-wider mb-2">
-                Últimos 5 números del producto
+                Código del producto / Código de barras
               </label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
@@ -238,8 +251,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
                     type="text"
                     value={codeValue}
                     onChange={handleCodeChange}
-                    placeholder="Ej. 45821"
-                    maxLength={5}
+                    placeholder="Ej. 7791234567890"
                     className={`w-full px-4 py-3 rounded-xl border ${
                       errors.code ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'
                     } bg-slate-50 dark:bg-slate-750 text-black dark:text-white placeholder-slate-455 focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] transition-all text-sm font-semibold`}
@@ -254,7 +266,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
                 <button
                   type="button"
                   onClick={() => setScannerMode('code')}
-                  className="px-4 py-3 bg-[#FF1744]/10 text-[#FF1744] hover:bg-[#FF1744]/20 rounded-xl transition-all flex items-center gap-1.5 font-bold text-xs cursor-pointer"
+                  className="px-4 py-3 bg-[#FF1744]/10 text-[#FF1744] hover:bg-[#FF1744]/20 rounded-xl transition-all flex items-center gap-1.5 font-bold text-xs cursor-pointer shrink-0"
                 >
                   <Camera className="w-4 h-4" />
                   <span className="hidden sm:inline">Escanear</span>
@@ -265,15 +277,24 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
                 <p className="text-xs text-red-500 font-semibold mt-1.5">{errors.code.message}</p>
               )}
 
-              {/* Duplicate code alert */}
+              {/* Duplicate code alert with fast load & edit button */}
               {duplicateProduct && (
-                <div className="p-3.5 bg-amber-50 dark:bg-amber-500/10 border border-amber-250 dark:border-amber-500/20 rounded-xl text-xs space-y-1 mt-2">
-                  <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400 font-bold">
-                    <AlertTriangle className="w-4 h-4 text-amber-500" />
-                    <span>¡Producto ya ingresado!</span>
+                <div className="p-3.5 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-300 dark:border-emerald-500/30 rounded-xl text-xs space-y-2 mt-2">
+                  <div className="flex items-center justify-between font-extrabold text-emerald-800 dark:text-emerald-300">
+                    <div className="flex items-center gap-1.5">
+                      <CheckCircle className="w-4 h-4 text-emerald-500" />
+                      <span>¡Producto ya existe en inventario!</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => loadProductValues(duplicateProduct)}
+                      className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer shadow-sm"
+                    >
+                      Cargar datos actuales
+                    </button>
                   </div>
-                  <p className="text-slate-600 dark:text-slate-350 font-medium leading-relaxed">
-                    Este código de barras ya está registrado en <span className="font-bold">{duplicateProduct.location}</span> con fecha de vencimiento el <span className="font-bold">{new Date(duplicateProduct.expiryDate + 'T00:00:00').toLocaleDateString()}</span>.
+                  <p className="text-slate-600 dark:text-slate-350 text-[11px] leading-relaxed">
+                    Registrado en <span className="font-bold text-slate-800 dark:text-white">{duplicateProduct.location}</span> con fecha <span className="font-bold text-slate-800 dark:text-white">{new Date(duplicateProduct.expiryDate + 'T00:00:00').toLocaleDateString()}</span> ({duplicateProduct.quantity || 1} un.). Puedes modificar la fecha y la cantidad a continuación.
                   </p>
                 </div>
               )}
@@ -503,7 +524,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
                 className="flex-1 py-3 px-4 bg-[#FF1744] text-white font-bold rounded-xl hover:bg-red-600 transition-all flex items-center justify-center gap-1.5 shadow-md shadow-red-200 dark:shadow-none text-sm cursor-pointer"
               >
                 <Save className="w-4 h-4" />
-                <span>{productIdToEdit ? 'Guardar Cambios' : 'Registrar'}</span>
+                <span>{isEditingExisting ? 'Guardar Cambios' : 'Registrar'}</span>
               </button>
             </div>
 
@@ -526,7 +547,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
       <ConfirmationAnimation
         isVisible={showConfirmation}
         onFinished={handleFinishedConfirmation}
-        message={productIdToEdit ? "¡Producto Actualizado!" : "¡Producto Registrado!"}
+        message={isEditingExisting ? "¡Producto Actualizado!" : "¡Producto Registrado!"}
       />
     </>
   );

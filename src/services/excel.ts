@@ -72,8 +72,8 @@ export const parseProductsFromExcel = (file: File): Promise<Partial<Product>[]> 
           const weightVal = row['Peso (Kg)'] || row['Peso'] || row['peso'] || row['Weight'] || undefined;
           const costVal = row['Costo / Precio ($)'] || row['Costo'] || row['costo'] || row['Precio'] || row['Cost'] || undefined;
 
-          // Format code (ensure 5 digits string)
-          const code = codeVal.toString().trim().slice(-5);
+          // Format code string
+          const code = codeVal.toString().trim();
           
           const rawCat = categoryVal.toString().trim().toLowerCase();
           const category = ['cárnicos', 'embutidos', 'lácteos', 'vegetales', 'general'].includes(rawCat)

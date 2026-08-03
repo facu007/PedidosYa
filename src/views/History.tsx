@@ -277,7 +277,7 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Buscar por los últimos 5 números..."
+            placeholder="Buscar por código de producto o ubicación..."
             className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] transition-all text-sm font-semibold"
           />
         </div>

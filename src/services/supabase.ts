@@ -41,30 +41,32 @@ export const supabaseService = {
 
       // 3. Fetch remote data from Supabase
       let remoteProducts: Product[] = [];
-      try {
-        const { data, error } = await supabase.from('products').select('*');
-        if (error) throw error;
-        remoteProducts = data || [];
-      } catch (e) {
-        console.warn('No se pudieron leer productos de Supabase:', e);
+      const { data: prodData, error: prodError } = await supabase.from('products').select('*');
+      if (prodError) {
+        if (prodError.code === '42P01') {
+          throw new Error('La tabla "products" no existe en Supabase. Ejecuta el script SQL en Supabase para crearla.');
+        } else if (prodError.code === '42501' || prodError.message.includes('permission denied')) {
+          throw new Error('Permiso denegado por política RLS en Supabase (tabla "products"). Configura las políticas RLS.');
+        } else {
+          throw prodError;
+        }
       }
+      remoteProducts = prodData || [];
 
       let remoteLogs: AuditLog[] = [];
-      try {
-        const { data, error } = await supabase.from('audit_logs').select('*');
-        if (error) throw error;
-        remoteLogs = data || [];
-      } catch (e) {
-        console.warn('No se pudieron leer logs de Supabase:', e);
+      const { data: logData, error: logError } = await supabase.from('audit_logs').select('*');
+      if (logError) {
+        console.warn('Advertencia al leer audit_logs de Supabase:', logError);
+      } else {
+        remoteLogs = logData || [];
       }
 
       let remoteUsers: User[] = [];
-      try {
-        const { data, error } = await supabase.from('users').select('*');
-        if (error) throw error;
-        remoteUsers = data || [];
-      } catch (e) {
-        console.warn('No se pudieron leer usuarios de Supabase:', e);
+      const { data: userData, error: userError } = await supabase.from('users').select('*');
+      if (userError) {
+        console.warn('Advertencia al leer usuarios de Supabase:', userError);
+      } else {
+        remoteUsers = userData || [];
       }
 
       let remoteConfig: AppConfig | undefined = undefined;

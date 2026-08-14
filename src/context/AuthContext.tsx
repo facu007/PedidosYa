@@ -1,27 +1,15 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { dbService } from '../services/db';
 import type { User } from '../services/db';
 import { syncService } from '../services/syncService';
-
-interface AuthContextType {
-  user: User | null;
-  users: User[];
-  loading: boolean;
-  login: (username: string, passwordHash: string) => Promise<{ success: boolean; error?: string }>;
-  logout: () => void;
-  createUser: (newUser: User) => Promise<{ success: boolean; error?: string }>;
-  deleteUser: (username: string) => Promise<{ success: boolean; error?: string }>;
-  refreshUsers: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+import { AuthContext } from './auth.context';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const refreshUsers = async () => {
+  const refreshUsers = useCallback(async () => {
     try {
       const allUsers = await dbService.getUsers();
       // Filter out deleted users for the local UI list
@@ -29,9 +17,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (e) {
       console.error('Error refreshing users list:', e);
     }
-  };
+  }, []);
 
-  const triggerBackgroundSync = async () => {
+  const triggerBackgroundSync = useCallback(async () => {
     try {
       const dbConfig = await dbService.getConfig();
       if (dbConfig.syncEnabled && navigator.onLine) {
@@ -40,7 +28,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (e) {
       console.error('Error syncing users in background:', e);
     }
-  };
+  }, []);
 
   // Load session from localStorage on init
   useEffect(() => {
@@ -64,7 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
     initSession();
-  }, []);
+  }, [refreshUsers]);
 
   const login = async (username: string, passwordHash: string): Promise<{ success: boolean; error?: string }> => {
     try {
@@ -136,12 +124,4 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       {children}
     </AuthContext.Provider>
   );
-};
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
 };

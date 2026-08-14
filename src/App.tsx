@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { useAuth } from './context/AuthContext';
-import { useApp } from './context/AppContext';
-import { seedDB } from './services/db';
+import React, { useState } from 'react';
+import { useAuth } from './hooks/useAuth';
+import { useApp } from './hooks/useApp';
 import { Login } from './views/Login';
 import { Layout } from './components/Layout';
 import { Dashboard } from './views/Dashboard';
@@ -14,32 +13,10 @@ import { RefreshCw } from 'lucide-react';
 
 export const App: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
-  const { loading: appLoading, refreshData } = useApp();
+  const { loading: appLoading } = useApp();
   const [currentView, setView] = useState('dashboard');
   const [openAddModal, setOpenAddModal] = useState(false);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
-  const [dbSeeded, setDbSeeded] = useState(false);
-
-  // Seed DB on startup
-  useEffect(() => {
-    let isMounted = true;
-    const seed = async () => {
-      try {
-        await seedDB();
-        if (isMounted) {
-          setDbSeeded(true);
-          await refreshData();
-        }
-      } catch (err) {
-        console.error('Error seeding DB:', err);
-        if (isMounted) setDbSeeded(true); // Proceed anyway to avoid locking
-      }
-    };
-    seed();
-    return () => {
-      isMounted = false;
-    };
-  }, [refreshData]);
 
   const handleEditProduct = (id: string) => {
     setEditingProductId(id);
@@ -52,7 +29,7 @@ export const App: React.FC = () => {
   };
 
   // 1. Loading States
-  if (authLoading || appLoading || !dbSeeded) {
+  if (authLoading || appLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 transition-colors duration-200">
         <div className="text-center">

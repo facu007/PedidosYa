@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
-import { useAuth } from '../context/AuthContext';
+import { useApp } from '../hooks/useApp';
+import { useAuth } from '../hooks/useAuth';
 import { syncService } from '../services/syncService';
 import { useAudio } from '../hooks/useAudio';
 import { useNotifications } from '../hooks/useNotifications';

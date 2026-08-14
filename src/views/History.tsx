@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
-import { useApp } from '../context/AppContext';
-import { useAuth } from '../context/AuthContext';
+import { useApp } from '../hooks/useApp';
+import { useAuth } from '../hooks/useAuth';
 import { exportProductsToExcel, parseProductsFromExcel } from '../services/excel';
 import { exportProductsToPDF } from '../services/pdf';
 import { useAudio } from '../hooks/useAudio';
@@ -393,13 +393,13 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
                           {getCategoryBadge(p.category)}
                         </td>
                         <td className="p-4">
-                          {p.unit === 'kg' || p.weight ? (
+                          {p.unit === 'kg' || p.weight !== undefined ? (
                             <span className="bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400 px-2 py-0.5 rounded text-xs font-extrabold border border-red-250 dark:border-red-500/20 whitespace-nowrap">
-                              ⚖️ {p.weight ? `${p.weight} Kg` : 'Por peso'} {p.quantity > 1 ? `(${p.quantity} pzs)` : ''}
+                              ⚖️ {p.weight !== undefined ? `${p.weight} Kg` : 'Por peso'} {p.quantity > 1 ? `(${p.quantity} pzs)` : ''}
                             </span>
                           ) : (
                             <span className="bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-xs font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">
-                              📦 {p.quantity || 1} un.
+                              📦 {p.quantity ?? 1} un.
                             </span>
                           )}
                         </td>

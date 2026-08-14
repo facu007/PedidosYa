@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../hooks/useApp';
 import { useAudio } from '../hooks/useAudio';
 import { BarcodeScanner } from '../components/BarcodeScanner';
 import { ConfirmationAnimation } from '../components/ConfirmationAnimation';
@@ -105,7 +105,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
   const selectedCategory = watch('category');
   const selectedUnit = watch('unit');
   const codeValue = watch('code');
-  const currentQuantity = watch('quantity') || 1;
+  const currentQuantity = watch('quantity') ?? 1;
 
   const handleStepQuantity = (delta: number) => {
     const nextVal = Math.max(1, (typeof currentQuantity === 'number' && !isNaN(currentQuantity) ? currentQuantity : 1) + delta);
@@ -117,7 +117,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
     (p) => p.code && codeValue && p.code.trim() === codeValue.trim() && !p.isDiscarded && p.id !== productIdToEdit
   );
 
-  const loadProductValues = (prod: Product) => {
+  const loadProductValues = useCallback((prod: Product) => {
     setValue('code', prod.code);
     setValue('category', prod.category || 'general');
     setValue('location', prod.location);
@@ -126,11 +126,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
       setValue('addedDate', prod.addedDate.split('T')[0]);
     }
     setValue('observations', prod.observations || '');
-    setValue('unit', prod.unit || (prod.category === 'cárnicos' || prod.weight ? 'kg' : 'unidades'));
-    setValue('quantity', prod.quantity || 1);
+    setValue('unit', prod.unit || (prod.category === 'cárnicos' || prod.weight !== undefined ? 'kg' : 'unidades'));
+    setValue('quantity', prod.quantity ?? 1);
     setValue('weight', prod.weight);
     setValue('costPrice', prod.costPrice);
-  };
+  }, [setValue]);
 
   // Auto switch unit to 'kg' when selecting 'cárnicos' if creating a new product
   useEffect(() => {
@@ -162,7 +162,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
         costPrice: undefined,
       });
     }
-  }, [productIdToEdit, products, setValue, reset, isOpen]);
+  }, [productIdToEdit, products, loadProductValues, reset, isOpen]);
 
   if (!isOpen) return null;
 
@@ -297,7 +297,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
                         type="button"
                         onClick={() => {
                           loadProductValues(duplicateProduct);
-                          setValue('quantity', (duplicateProduct.quantity || 1) + 1);
+                          setValue('quantity', (duplicateProduct.quantity ?? 1) + 1);
                         }}
                         className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer shadow-sm flex items-center gap-1"
                         title="Sumar 1 unidad al producto existente"
@@ -315,7 +315,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
                     </div>
                   </div>
                   <p className="text-slate-600 dark:text-slate-350 text-[11px] leading-relaxed">
-                    Registrado en <span className="font-bold text-slate-800 dark:text-white">{duplicateProduct.location}</span> con fecha <span className="font-bold text-slate-800 dark:text-white">{new Date(duplicateProduct.expiryDate + 'T00:00:00').toLocaleDateString()}</span> ({duplicateProduct.quantity || 1} un.). Puedes modificar la fecha y la cantidad a continuación.
+                    Registrado en <span className="font-bold text-slate-800 dark:text-white">{duplicateProduct.location}</span> con fecha <span className="font-bold text-slate-800 dark:text-white">{new Date(duplicateProduct.expiryDate + 'T00:00:00').toLocaleDateString()}</span> ({duplicateProduct.quantity ?? 1} un.). Puedes modificar la fecha y la cantidad a continuación.
                   </p>
                 </div>
               )}

@@ -3,6 +3,26 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
+const getVendorChunk = (id: string): string | undefined => {
+  const normalizedId = id.replaceAll('\\', '/')
+
+  if (normalizedId.includes('/node_modules/@zxing/')) return 'scanner'
+  if (normalizedId.includes('/node_modules/xlsx/')) return 'spreadsheet'
+  if (normalizedId.includes('/node_modules/jspdf')) return 'pdf'
+  if (normalizedId.includes('/node_modules/firebase/') || normalizedId.includes('/node_modules/@firebase/')) return 'firebase'
+  if (normalizedId.includes('/node_modules/@supabase/')) return 'supabase'
+  if (normalizedId.includes('/node_modules/recharts/')) return 'charts'
+  if (normalizedId.includes('/node_modules/date-fns/')) return 'dates'
+  if (normalizedId.includes('/node_modules/idb/')) return 'storage'
+  if (
+    normalizedId.includes('/node_modules/react/') ||
+    normalizedId.includes('/node_modules/react-dom/') ||
+    normalizedId.includes('/node_modules/react-hook-form/') ||
+    normalizedId.includes('/node_modules/@hookform/') ||
+    normalizedId.includes('/node_modules/zod/')
+  ) return 'react'
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
@@ -70,5 +90,12 @@ export default defineConfig({
         ]
       }
     })
-  ]
+  ],
+  build: {
+    rolldownOptions: {
+      output: {
+        manualChunks: getVendorChunk
+      }
+    }
+  }
 })

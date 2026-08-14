@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { useApp } from '../context/AppContext';
-import { useAuth } from '../context/AuthContext';
+import { useApp } from '../hooks/useApp';
+import { useAuth } from '../hooks/useAuth';
 import { useNotifications } from '../hooks/useNotifications';
 import { 
   Calendar, 
@@ -336,9 +336,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
                         <span className="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 font-bold px-2 py-0.5 rounded">
                           {product.location}
                         </span>
-                        {product.unit === 'kg' || product.weight ? (
+                        {product.unit === 'kg' || product.weight !== undefined ? (
                           <span className="text-[10px] bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 font-extrabold px-2 py-0.5 rounded border border-red-200 dark:border-red-500/20">
-                            ⚖️ {product.weight ? `${product.weight} Kg` : 'Por peso'} {product.quantity > 1 ? `(${product.quantity} pzs)` : ''}
+                            ⚖️ {product.weight !== undefined ? `${product.weight} Kg` : 'Por peso'} {product.quantity > 1 ? `(${product.quantity} pzs)` : ''}
                           </span>
                         ) : product.quantity > 1 ? (
                           <span className="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-350 font-bold px-2 py-0.5 rounded">

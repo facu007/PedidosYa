@@ -1,47 +1,10 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { dbService } from '../services/db';
 import type { Product, AppConfig, AuditLog } from '../services/db';
-import { useAuth } from './AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { differenceInCalendarDays, startOfDay } from 'date-fns';
 import { syncService } from '../services/syncService';
-
-interface AppContextType {
-  products: Product[];
-  auditLogs: AuditLog[];
-  config: AppConfig;
-  loading: boolean;
-  refreshData: (showSpinner?: boolean) => Promise<void>;
-  saveProduct: (productData: Omit<Product, 'status' | 'isDiscarded' | 'addedBy'> & { addedDate?: string }) => Promise<void>;
-  discardProduct: (id: string) => Promise<void>;
-  deleteProduct: (id: string) => Promise<void>;
-  saveConfig: (newConfig: AppConfig) => Promise<void>;
-  importFromExcel: (parsedProducts: Partial<Product>[]) => Promise<{ imported: number; errors: number }>;
-  
-  // Filtering & Search
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-  filterLocationType: 'todos' | 'heladera' | 'freezer';
-  setFilterLocationType: (type: 'todos' | 'heladera' | 'freezer') => void;
-  filterStatusType: 'todos' | 'vigentes' | 'proximos' | 'vencidos';
-  setFilterStatusType: (type: 'todos' | 'vigentes' | 'proximos' | 'vencidos') => void;
-  filteredProducts: Product[];
-  
-  // Dashboard & Alerts
-  getDashboardStats: () => {
-    vigentes: number;
-    venceHoy: number;
-    vence3Dias: number; // orange colors: vence hoy / mañana / 2 / 3 days
-    vencidos: number;
-    total: number;
-  };
-  getAlerts: () => {
-    vencidosCount: number;
-    hoyCount: number;
-    mananaCount: number;
-  };
-}
-
-const AppContext = createContext<AppContextType | undefined>(undefined);
+import { AppContext } from './app.context';
 
 // Helper to calculate product status
 const calculateProductStatus = (
@@ -87,6 +50,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
   const [loading, setLoading] = useState(true);
 
+  // Sync States
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncStatus, setLastSyncStatus] = useState<{ success: boolean; message: string; timestamp?: string } | null>(null);
+
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('');
   const [filterLocationType, setFilterLocationType] = useState<'todos' | 'heladera' | 'freezer'>('todos');
@@ -123,40 +90,73 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, []);
 
-  // Helper for background sync
-  const triggerBackgroundSync = async (currentConfig?: AppConfig) => {
-    const cfg = currentConfig || config;
-    if (cfg.syncEnabled && navigator.onLine) {
-      try {
-        console.log('Iniciando sincronización automática en segundo plano...');
-        const result = await syncService.syncData(cfg);
-        if (result.success) {
-          console.log('Sincronización en segundo plano completada con éxito.');
-          await refreshData(false); // Silent refresh
-        }
-      } catch (e) {
-        console.error('Error durante sincronización en segundo plano:', e);
-      }
-    }
-  };
+  // Helper for triggering sync manually or programmatically
+  const triggerSync = useCallback(async (currentConfig?: AppConfig) => {
+    const dbConfig = currentConfig || (await dbService.getConfig());
+    const envUrl = import.meta.env.VITE_SUPABASE_URL;
+    const envAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    const hasEnvSupabase = !!(envUrl && envUrl !== 'YOUR_SUPABASE_URL' && envAnonKey && envAnonKey !== 'YOUR_SUPABASE_ANON_KEY');
+    
+    if (!dbConfig.syncEnabled && !hasEnvSupabase) return;
+    if (!navigator.onLine) return;
 
+    setIsSyncing(true);
+    try {
+      console.log('Iniciando sincronización de base de datos...');
+      const result = await syncService.syncData(dbConfig);
+      setLastSyncStatus({
+        success: result.success,
+        message: result.message,
+        timestamp: result.timestamp,
+      });
+
+      if (result.success) {
+        await refreshData(false); // Silent refresh of local state
+      }
+    } catch (e: any) {
+      console.error('Error durante la sincronización:', e);
+      setLastSyncStatus({
+        success: false,
+        message: `Error al sincronizar: ${e.message || e}`,
+        timestamp: new Date().toISOString(),
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [refreshData]);
+
+  // Initial load and sync
   useEffect(() => {
     const initLoad = async () => {
       await refreshData(true);
-      try {
-        const dbConfig = await dbService.getConfig();
-        if (dbConfig.syncEnabled && navigator.onLine) {
-          const result = await syncService.syncData(dbConfig);
-          if (result.success) {
-            await refreshData(false);
-          }
-        }
-      } catch (e) {
-        console.error('Error durante sincronización inicial:', e);
-      }
+      await triggerSync();
     };
     initLoad();
-  }, []);
+  }, [refreshData, triggerSync]);
+
+  // Periodic Auto-Polling & Visibility Sync Listener (every 20 seconds)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (navigator.onLine) {
+        triggerSync();
+      }
+    }, 20000); // 20 seconds polling interval
+
+    const handleFocus = () => {
+      if (navigator.onLine) {
+        triggerSync();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+    };
+  }, [triggerSync]);
 
   // Synchronize theme with DOM globally
   useEffect(() => {
@@ -176,7 +176,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const fullProduct: Product = {
       ...productData,
       quantity: productData.quantity ?? (existingProduct ? existingProduct.quantity : 1),
-      unit: productData.unit || (existingProduct ? existingProduct.unit : (productData.category === 'cárnicos' || productData.weight ? 'kg' : 'unidades')),
+      unit: productData.unit || (existingProduct ? existingProduct.unit : (productData.category === 'cárnicos' || productData.weight !== undefined ? 'kg' : 'unidades')),
       weight: productData.weight !== undefined ? productData.weight : (existingProduct ? existingProduct.weight : undefined),
       addedBy: existingProduct ? existingProduct.addedBy : operator,
       addedDate: productData.addedDate || (existingProduct ? existingProduct.addedDate : new Date().toISOString()),
@@ -187,27 +187,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     await dbService.saveProduct(fullProduct, operator);
     await refreshData();
-    triggerBackgroundSync();
+    triggerSync();
   };
 
   const discardProduct = async (id: string) => {
     const operator = user?.username || 'sistema';
     await dbService.discardProduct(id, operator);
     await refreshData();
-    triggerBackgroundSync();
+    triggerSync();
   };
 
   const deleteProduct = async (id: string) => {
     const operator = user?.username || 'sistema';
     await dbService.deleteProduct(id, operator);
     await refreshData();
-    triggerBackgroundSync();
+    triggerSync();
   };
 
   const saveConfig = async (newConfig: AppConfig) => {
     await dbService.saveConfig(newConfig);
     await refreshData();
-    triggerBackgroundSync(newConfig);
+    triggerSync(newConfig);
   };
 
   const importFromExcel = async (parsedProducts: Partial<Product>[]): Promise<{ imported: number; errors: number }> => {
@@ -224,7 +224,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           location: p.location,
           expiryDate: p.expiryDate,
           quantity: p.quantity ?? 1,
-          unit: p.unit || (p.category === 'cárnicos' || p.weight ? 'kg' : 'unidades'),
+          unit: p.unit || (p.category === 'cárnicos' || p.weight !== undefined ? 'kg' : 'unidades'),
           weight: p.weight,
           observations: p.observations || '',
           addedBy: operator,
@@ -242,7 +242,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (imported > 0) {
       await refreshData();
-      triggerBackgroundSync();
+      triggerSync();
     }
 
     return { imported, errors };
@@ -343,17 +343,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         
         getDashboardStats,
         getAlerts,
+        triggerSync,
+        isSyncing,
+        lastSyncStatus,
       }}
     >
       {children}
     </AppContext.Provider>
   );
-};
-
-export const useApp = () => {
-  const context = useContext(AppContext);
-  if (context === undefined) {
-    throw new Error('useApp must be used within an AppProvider');
-  }
-  return context;
 };

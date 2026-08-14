@@ -7,8 +7,8 @@ export const exportProductsToExcel = (products: Product[], locationFilterName?: 
     'Código de Barras': p.code,
     'Categoría': p.category || 'general',
     'Ubicación': p.location,
-    'Unidad': p.unit || (p.weight ? 'kg' : 'unidades'),
-    'Cantidad (Piezas/Unidades)': p.quantity || 1,
+    'Unidad': p.unit || (p.weight !== undefined ? 'kg' : 'unidades'),
+    'Cantidad (Piezas/Unidades)': p.quantity ?? 1,
     'Peso (Kg)': p.weight !== undefined ? p.weight : '',
     'Costo / Precio ($)': p.costPrice !== undefined ? p.costPrice : '',
     'Fecha de Registro': new Date(p.addedDate).toLocaleDateString(),
@@ -64,15 +64,15 @@ export const parseProductsFromExcel = (file: File): Promise<Partial<Product>[]> 
         // Map and validate rows
         const parsedProducts: Partial<Product>[] = rawRows.map((row) => {
           // Find fields regardless of slight variations in header names
-          const codeVal = row['Código (Últimos 5 números)'] || row['Código'] || row['codigo'] || row['Code'] || '';
+          const codeVal = row['Código de Barras'] || row['Código (Últimos 5 números)'] || row['Código'] || row['codigo'] || row['Code'] || '';
           const categoryVal = row['Categoría'] || row['categoría'] || row['categoria'] || row['Category'] || 'general';
           const locationVal = row['Ubicación'] || row['ubicacion'] || row['Location'] || '';
           let expiryVal = row['Fecha de Vencimiento'] || row['Vencimiento'] || row['vencimiento'] || row['Expiry Date'] || '';
           const obsVal = row['Observaciones'] || row['observaciones'] || row['Notes'] || '';
           const unitVal = row['Unidad'] || row['unidad'] || row['Unit'] || '';
-          const qtyVal = row['Cantidad (Piezas/Unidades)'] || row['Cantidad'] || row['cantidad'] || row['Quantity'] || 1;
-          const weightVal = row['Peso (Kg)'] || row['Peso'] || row['peso'] || row['Weight'] || undefined;
-          const costVal = row['Costo / Precio ($)'] || row['Costo'] || row['costo'] || row['Precio'] || row['Cost'] || undefined;
+          const qtyVal = row['Cantidad (Piezas/Unidades)'] ?? row['Cantidad'] ?? row['cantidad'] ?? row['Quantity'] ?? 1;
+          const weightVal = row['Peso (Kg)'] ?? row['Peso'] ?? row['peso'] ?? row['Weight'];
+          const costVal = row['Costo / Precio ($)'] ?? row['Costo'] ?? row['costo'] ?? row['Precio'] ?? row['Cost'];
 
           // Format code string
           const code = codeVal.toString().trim();
@@ -84,11 +84,17 @@ export const parseProductsFromExcel = (file: File): Promise<Partial<Product>[]> 
           
           const unit: Product['unit'] = unitVal.toString().trim().toLowerCase() === 'kg' 
             || (category === 'cárnicos' && unitVal.toString().trim().toLowerCase() !== 'unidades') 
-            || weightVal ? 'kg' : 'unidades';
+            || weightVal !== undefined && weightVal !== '' ? 'kg' : 'unidades';
 
-          const weight = weightVal ? parseFloat(weightVal) : undefined;
-          const quantity = qtyVal ? parseInt(qtyVal, 10) || 1 : 1;
-          const costPrice = costVal ? parseFloat(costVal) : undefined;
+          const parseOptionalNumber = (value: unknown): number | undefined => {
+            if (value === undefined || value === null || value === '') return undefined;
+            const parsed = Number.parseFloat(String(value).replace(',', '.'));
+            return Number.isFinite(parsed) ? parsed : undefined;
+          };
+          const weight = parseOptionalNumber(weightVal);
+          const parsedQuantity = parseOptionalNumber(qtyVal);
+          const quantity = parsedQuantity !== undefined && parsedQuantity >= 0 ? Math.trunc(parsedQuantity) : 1;
+          const costPrice = parseOptionalNumber(costVal);
 
           // Format expiry date
           let expiryDate = '';

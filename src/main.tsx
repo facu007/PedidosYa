@@ -4,6 +4,7 @@ import './index.css';
 import App from './App.tsx';
 import { AuthProvider } from './context/AuthContext';
 import { AppProvider } from './context/AppContext';
+import { seedDB } from './services/db';
 
 // Register Service Worker for PWA (offline capability)
 import { registerSW } from 'virtual:pwa-register';
@@ -18,12 +19,24 @@ const updateSW = registerSW({
   },
 });
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <AuthProvider>
-      <AppProvider>
-        <App />
-      </AppProvider>
-    </AuthProvider>
-  </StrictMode>,
-);
+const root = createRoot(document.getElementById('root')!);
+
+const bootstrap = async () => {
+  try {
+    await seedDB();
+  } catch (error) {
+    console.error('Error al inicializar la base de datos local:', error);
+  }
+
+  root.render(
+    <StrictMode>
+      <AuthProvider>
+        <AppProvider>
+          <App />
+        </AppProvider>
+      </AuthProvider>
+    </StrictMode>,
+  );
+};
+
+void bootstrap();

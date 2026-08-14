@@ -1,6 +1,6 @@
 import React from 'react';
-import { useAuth } from '../context/AuthContext';
-import { useApp } from '../context/AppContext';
+import { useAuth } from '../hooks/useAuth';
+import { useApp } from '../hooks/useApp';
 import {
   LayoutDashboard,
   ClipboardList,
@@ -14,7 +14,8 @@ import {
   X,
   Sliders,
   Crown,
-  UserCheck
+  UserCheck,
+  RefreshCw
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -26,7 +27,7 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, onOpenAddModal }) => {
   const { user, logout } = useAuth();
-  const { config, saveConfig } = useApp();
+  const { config, saveConfig, triggerSync, isSyncing, lastSyncStatus } = useApp();
 
   const [deferredPrompt, setDeferredPrompt] = React.useState<any>(null);
   const [showIOSPrompt, setShowIOSPrompt] = React.useState(false);
@@ -184,6 +185,20 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, 
             </button>
           )}
 
+          {/* Sync Button */}
+          <button
+            onClick={() => triggerSync()}
+            disabled={isSyncing}
+            className="flex items-center justify-between w-full px-4 py-2.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all text-xs font-semibold cursor-pointer disabled:opacity-50"
+            title={lastSyncStatus ? lastSyncStatus.message : 'Sincronizar datos con la nube'}
+          >
+            <span className="flex items-center gap-2">
+              <RefreshCw className={`w-4 h-4 text-emerald-500 ${isSyncing ? 'animate-spin' : ''}`} />
+              <span>{isSyncing ? 'Sincronizando...' : 'Sincronizar Nube'}</span>
+            </span>
+            <span className={`w-2 h-2 rounded-full ${isSyncing ? 'bg-amber-400 animate-ping' : lastSyncStatus?.success === false ? 'bg-red-500' : 'bg-emerald-500 animate-pulse'}`} />
+          </button>
+
           {/* Theme toggle */}
           <button
             onClick={toggleTheme}
@@ -227,6 +242,20 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, 
               {user.role === 'admin' ? '👑 Admin' : '👤 Empleado'}
             </span>
           )}
+
+          {/* Quick sync button */}
+          <button
+            onClick={() => triggerSync()}
+            disabled={isSyncing}
+            className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-350 transition-all cursor-pointer disabled:opacity-50 relative"
+            aria-label="Sincronizar Nube"
+            title="Sincronizar Nube"
+          >
+            <RefreshCw className={`w-5 h-5 text-emerald-500 ${isSyncing ? 'animate-spin' : ''}`} />
+            {lastSyncStatus?.success === false && (
+              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500" />
+            )}
+          </button>
 
           {/* Quick theme toggle */}
           <button

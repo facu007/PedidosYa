@@ -1,5 +1,5 @@
 import React from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../hooks/useApp';
 import {
   BarChart,
   Bar,
@@ -129,8 +129,8 @@ export const Statistics: React.FC = () => {
 
   // 5. Financial Waste & Category Ranking
   const discardedOrExpired = products.filter(p => p.isDiscarded || p.status === 'vencido');
-  const totalFinancialLoss = discardedOrExpired.reduce((sum, p) => sum + ((p.costPrice || 0) * (p.quantity || 1)), 0);
-  const activeStockValue = activeProducts.reduce((sum, p) => sum + ((p.costPrice || 0) * (p.quantity || 1)), 0);
+  const totalFinancialLoss = discardedOrExpired.reduce((sum, p) => sum + ((p.costPrice ?? 0) * (p.quantity ?? 1)), 0);
+  const activeStockValue = activeProducts.reduce((sum, p) => sum + ((p.costPrice ?? 0) * (p.quantity ?? 1)), 0);
 
   const categoryWaste: Record<string, { count: number; totalCost: number }> = {};
   discardedOrExpired.forEach((p) => {
@@ -138,8 +138,8 @@ export const Statistics: React.FC = () => {
     if (!categoryWaste[cat]) {
       categoryWaste[cat] = { count: 0, totalCost: 0 };
     }
-    categoryWaste[cat].count += p.quantity || 1;
-    categoryWaste[cat].totalCost += (p.costPrice || 0) * (p.quantity || 1);
+    categoryWaste[cat].count += p.quantity ?? 1;
+    categoryWaste[cat].totalCost += (p.costPrice ?? 0) * (p.quantity ?? 1);
   });
 
   const categoryWasteRanking = Object.keys(categoryWaste)

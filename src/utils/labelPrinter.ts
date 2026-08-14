@@ -10,9 +10,9 @@ export const printProductLabel = (product: Product) => {
 
   const expiryFormatted = new Date(product.expiryDate + 'T00:00:00').toLocaleDateString();
   const addedFormatted = new Date(product.addedDate).toLocaleDateString();
-  const quantityText = product.unit === 'kg' || product.weight 
-    ? `${product.weight ? `${product.weight} Kg` : 'Por peso'} (${product.quantity} pzs)` 
-    : `${product.quantity} unidades`;
+  const quantityText = product.unit === 'kg' || product.weight !== undefined
+    ? `${product.weight !== undefined ? `${product.weight} Kg` : 'Por peso'} (${product.quantity ?? 1} pzs)`
+    : `${product.quantity ?? 1} unidades`;
 
   const htmlContent = `
     <!DOCTYPE html>
@@ -105,7 +105,7 @@ export const printProductLabel = (product: Product) => {
 
         <div class="badge-row">
           <div class="badge">📦 ${quantityText}</div>
-          ${product.costPrice ? `<div class="badge">💲 $${product.costPrice}</div>` : ''}
+          ${product.costPrice !== undefined ? `<div class="badge">💲 $${product.costPrice}</div>` : ''}
         </div>
 
         <div class="expiry-box">

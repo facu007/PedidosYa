@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../hooks/useApp';
 import { useAudio } from '../hooks/useAudio';
 import { getTuesdayControlStatus } from '../utils/tuesdayControl';
 import type { Product } from '../services/db';
@@ -96,15 +96,19 @@ export const StockAdjustments: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      const currentQty = selectedProduct.quantity ?? 1;
+      const isWeightBased = selectedProduct.unit === 'kg' || selectedProduct.weight !== undefined;
+      const currentAmount = isWeightBased
+        ? selectedProduct.weight ?? 0
+        : selectedProduct.quantity ?? 1;
       const change = adjustmentType === 'sobrante' ? adjustmentQuantity : -adjustmentQuantity;
-      const newQty = Math.max(0, currentQty + change);
+      const newAmount = Math.max(0, currentAmount + change);
+      const unitLabel = isWeightBased ? 'kg' : 'unidades';
 
       const finalReason = adjustmentReason === 'Otro (Especificar)' ? customReason : adjustmentReason;
       const formattedReason = finalReason.trim() || 'Sin motivo especificado';
 
       // Build adjustment log description
-      const obsText = `Ajuste de stock: ${change > 0 ? '+' : ''}${change} unidades. Motivo: ${formattedReason}`;
+      const obsText = `Ajuste de stock: ${change > 0 ? '+' : ''}${change} ${unitLabel}. Motivo: ${formattedReason}`;
 
       // Update product quantity and observations
       await saveProduct({
@@ -113,9 +117,9 @@ export const StockAdjustments: React.FC = () => {
         category: selectedProduct.category || 'general',
         location: selectedProduct.location,
         expiryDate: selectedProduct.expiryDate,
-        quantity: newQty,
+        quantity: isWeightBased ? selectedProduct.quantity ?? 1 : newAmount,
         unit: selectedProduct.unit,
-        weight: selectedProduct.weight,
+        weight: isWeightBased ? newAmount : selectedProduct.weight,
         observations: selectedProduct.observations 
           ? `${selectedProduct.observations} | ${obsText}`
           : obsText,
@@ -123,7 +127,7 @@ export const StockAdjustments: React.FC = () => {
       });
 
       playSuccess();
-      setSuccessMessage(`¡Ajuste realizado con éxito! La cantidad cambió de ${currentQty} a ${newQty}.`);
+      setSuccessMessage(`¡Ajuste realizado con éxito! El stock cambió de ${currentAmount} a ${newAmount} ${unitLabel}.`);
       
       // Delay closing modal slightly so the user sees the confirmation message
       setTimeout(() => {
@@ -230,8 +234,8 @@ export const StockAdjustments: React.FC = () => {
                         </span>
                       </td>
                       <td className="py-4 px-5 text-center font-extrabold text-xs text-[#FF1744] dark:text-red-400">
-                        {p.unit === 'kg' || p.weight ? (
-                          <span className="whitespace-nowrap font-extrabold">⚖️ {p.weight ? `${p.weight} Kg` : 'Por peso'}</span>
+                        {p.unit === 'kg' || p.weight !== undefined ? (
+                          <span className="whitespace-nowrap font-extrabold">⚖️ {p.weight !== undefined ? `${p.weight} Kg` : 'Por peso'}</span>
                         ) : (
                           <span className="whitespace-nowrap font-bold">📦 {p.quantity ?? 1} un.</span>
                         )}
@@ -320,7 +324,7 @@ export const StockAdjustments: React.FC = () => {
                       <div className="flex items-center gap-1.5">
                         <span className="text-[10px] uppercase font-bold text-slate-400/80">Stock:</span>
                         <span className="text-sm font-black text-[#FF1744] dark:text-red-400">
-                          {p.unit === 'kg' || p.weight ? `⚖️ ${p.weight ? `${p.weight} Kg` : 'Por peso'}` : `📦 ${p.quantity ?? 1} un.`}
+                          {p.unit === 'kg' || p.weight !== undefined ? `⚖️ ${p.weight !== undefined ? `${p.weight} Kg` : 'Por peso'}` : `📦 ${p.quantity ?? 1} un.`}
                         </span>
                       </div>
                       <span className="text-[10px] text-slate-450 dark:text-slate-400 font-medium">
@@ -385,7 +389,7 @@ export const StockAdjustments: React.FC = () => {
                   <p className="text-slate-800 dark:text-white font-bold text-sm">
                     Stock actual: <span className="text-[#FF1744] dark:text-red-400">
                       {selectedProduct.unit === 'kg' || selectedProduct.weight 
-                        ? `⚖️ ${selectedProduct.weight ? `${selectedProduct.weight} Kg` : 'Por peso'} (${selectedProduct.quantity ?? 1} pzs)` 
+                        ? `⚖️ ${selectedProduct.weight !== undefined ? `${selectedProduct.weight} Kg` : 'Por peso'} (${selectedProduct.quantity ?? 1} pzs)`
                         : `${selectedProduct.quantity ?? 1} unidades`}
                     </span>
                   </p>
@@ -424,13 +428,19 @@ export const StockAdjustments: React.FC = () => {
 
                 {/* Adjustment Quantity Input */}
                 <div>
-                  <label htmlFor="adjust-qty" className="block text-slate-500 dark:text-slate-450 uppercase tracking-wider mb-1">Cantidad a Ajustar</label>
+                  <label htmlFor="adjust-qty" className="block text-slate-500 dark:text-slate-450 uppercase tracking-wider mb-1">
+                    {selectedProduct.unit === 'kg' || selectedProduct.weight !== undefined ? 'Peso a Ajustar (kg)' : 'Cantidad a Ajustar'}
+                  </label>
                   <input
                     id="adjust-qty"
                     type="number"
-                    min={1}
+                    min={selectedProduct.unit === 'kg' || selectedProduct.weight !== undefined ? 0.01 : 1}
+                    step={selectedProduct.unit === 'kg' || selectedProduct.weight !== undefined ? 0.01 : 1}
                     value={adjustmentQuantity}
-                    onChange={(e) => setAdjustmentQuantity(Math.max(1, parseInt(e.target.value, 10) || 0))}
+                    onChange={(e) => {
+                      const minimum = selectedProduct.unit === 'kg' || selectedProduct.weight !== undefined ? 0.01 : 1;
+                      setAdjustmentQuantity(Math.max(minimum, parseFloat(e.target.value) || 0));
+                    }}
                     className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] text-sm font-semibold"
                   />
                 </div>
@@ -466,11 +476,15 @@ export const StockAdjustments: React.FC = () => {
                 )}
 
                 {/* Alert warning for 0 stock */}
-                {adjustmentType === 'faltante' && adjustmentQuantity >= (selectedProduct.quantity ?? 1) && (
+                {adjustmentType === 'faltante' && adjustmentQuantity >= (
+                  selectedProduct.unit === 'kg' || selectedProduct.weight !== undefined
+                    ? selectedProduct.weight ?? 0
+                    : selectedProduct.quantity ?? 1
+                ) && (
                   <div className="p-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-250 dark:border-amber-500/20 rounded-xl flex gap-2">
                     <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
                     <p className="text-[10px] text-amber-700 dark:text-amber-400 font-semibold leading-relaxed">
-                      Atención: El faltante ingresado es igual o mayor al stock actual. El stock final quedará registrado en 0 unidades.
+                      Atención: El faltante ingresado es igual o mayor al stock actual. El stock final quedará registrado en 0 {selectedProduct.unit === 'kg' || selectedProduct.weight !== undefined ? 'kg' : 'unidades'}.
                     </p>
                   </div>
                 )}

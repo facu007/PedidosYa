@@ -1,4 +1,4 @@
-import { useApp } from '../context/AppContext';
+import { useApp } from './useApp';
 
 export const useAudio = () => {
   const { config } = useApp();

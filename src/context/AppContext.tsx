@@ -187,27 +187,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     await dbService.saveProduct(fullProduct, operator);
     await refreshData();
-    triggerSync();
+    triggerSync().catch((err) => console.warn('Background sync warning:', err));
   };
 
   const discardProduct = async (id: string) => {
     const operator = user?.username || 'sistema';
     await dbService.discardProduct(id, operator);
     await refreshData();
-    triggerSync();
+    triggerSync().catch((err) => console.warn('Background sync warning:', err));
   };
 
   const deleteProduct = async (id: string) => {
     const operator = user?.username || 'sistema';
     await dbService.deleteProduct(id, operator);
     await refreshData();
-    triggerSync();
+    triggerSync().catch((err) => console.warn('Background sync warning:', err));
   };
 
   const saveConfig = async (newConfig: AppConfig) => {
     await dbService.saveConfig(newConfig);
     await refreshData();
-    triggerSync(newConfig);
+    triggerSync(newConfig).catch((err) => console.warn('Background sync warning:', err));
   };
 
   const importFromExcel = async (parsedProducts: Partial<Product>[]): Promise<{ imported: number; errors: number }> => {

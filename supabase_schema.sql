@@ -19,8 +19,14 @@ create table if not exists public.products (
     category text,
     quantity integer not null default 1,
     unit text default 'unidades',
-    weight numeric
+    weight numeric,
+    "costPrice" numeric
 );
+
+-- Actualizaciones para tablas existentes (si ya fueron creadas anteriormente)
+alter table public.products add column if not exists unit text default 'unidades';
+alter table public.products add column if not exists weight numeric;
+alter table public.products add column if not exists "costPrice" numeric;
 
 -- 2. Tabla de Logs de Auditoría
 create table if not exists public.audit_logs (

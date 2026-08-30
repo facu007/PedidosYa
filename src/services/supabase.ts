@@ -3,6 +3,47 @@ import { dbService, initDB } from './db';
 import type { Product, AuditLog, User, AppConfig } from './db';
 import type { SyncResult } from './firebase';
 
+async function upsertProductsWithFallback(supabase: any, products: Product[]): Promise<void> {
+  if (products.length === 0) return;
+
+  // Clean undefined values
+  let sanitized: Record<string, any>[] = products.map(p => {
+    const clean: Record<string, any> = {};
+    for (const [key, val] of Object.entries(p)) {
+      if (val !== undefined) {
+        clean[key] = val;
+      }
+    }
+    return clean;
+  });
+
+  let { error } = await supabase.from('products').upsert(sanitized);
+
+  // If column doesn't exist in Supabase schema (PGRST204), strip missing column and retry upsert dynamically
+  const strippedColumns = new Set<string>();
+  while (error && error.code === 'PGRST204') {
+    const match = error.message?.match(/Could not find the '([^']+)' column/i);
+    if (match && match[1] && !strippedColumns.has(match[1])) {
+      const missingCol = match[1];
+      strippedColumns.add(missingCol);
+      console.warn(`Columna '${missingCol}' no existe en Supabase. Omitiendo columna para continuar sincronización.`);
+      sanitized = sanitized.map(p => {
+        const copy = { ...p };
+        delete copy[missingCol];
+        return copy;
+      });
+      const retry = await supabase.from('products').upsert(sanitized);
+      error = retry.error;
+    } else {
+      break;
+    }
+  }
+
+  if (error) {
+    throw error;
+  }
+}
+
 export const supabaseService = {
   // Check if internet is available
   isOnline(): boolean {
@@ -269,26 +310,48 @@ export const supabaseService = {
 
       // 9. Execute batch uploads and deletes in Supabase
       if (changesCount > 0) {
-        const uploadPromises = [];
         if (productsToUpsert.length > 0) {
-          uploadPromises.push(supabase.from('products').upsert(productsToUpsert));
+          await upsertProductsWithFallback(supabase, productsToUpsert);
         }
+
+        const uploadPromises = [];
         if (productsToDelete.length > 0) {
           uploadPromises.push(supabase.from('products').delete().in('id', productsToDelete));
         }
         if (logsToInsert.length > 0) {
-          uploadPromises.push(supabase.from('audit_logs').upsert(logsToInsert));
+          // Clean undefined properties from logs
+          const cleanLogs = logsToInsert.map(log => {
+            const clean: Record<string, any> = {};
+            for (const [k, v] of Object.entries(log)) {
+              if (v !== undefined) clean[k] = v;
+            }
+            return clean;
+          });
+          uploadPromises.push(supabase.from('audit_logs').upsert(cleanLogs));
         }
         if (usersToUpsert.length > 0) {
-          uploadPromises.push(supabase.from('users').upsert(usersToUpsert));
+          const cleanUsers = usersToUpsert.map(u => {
+            const clean: Record<string, any> = {};
+            for (const [k, v] of Object.entries(u)) {
+              if (v !== undefined) clean[k] = v;
+            }
+            return clean;
+          });
+          uploadPromises.push(supabase.from('users').upsert(cleanUsers));
         }
         if (configToUpsert) {
-          uploadPromises.push(supabase.from('config').upsert(configToUpsert));
+          const cleanConfig: Record<string, any> = {};
+          for (const [k, v] of Object.entries(configToUpsert)) {
+            if (v !== undefined) cleanConfig[k] = v;
+          }
+          uploadPromises.push(supabase.from('config').upsert(cleanConfig));
         }
 
-        const results = await Promise.all(uploadPromises);
-        for (const res of results) {
-          if (res.error) throw res.error;
+        if (uploadPromises.length > 0) {
+          const results = await Promise.all(uploadPromises);
+          for (const res of results) {
+            if (res.error) throw res.error;
+          }
         }
       }
 

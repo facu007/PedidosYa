@@ -56,7 +56,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (username: string, passwordHash: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      const dbUser = await dbService.getUser(username);
+      let dbUser = await dbService.getUser(username);
+      if (!dbUser && navigator.onLine) {
+        const dbConfig = await dbService.getConfig();
+        await syncService.syncData(dbConfig);
+        dbUser = await dbService.getUser(username);
+      }
+
       if (!dbUser || dbUser.isDeleted) {
         return { success: false, error: 'Usuario no encontrado.' };
       }

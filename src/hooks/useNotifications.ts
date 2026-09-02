@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { differenceInCalendarDays, startOfDay } from 'date-fns';
 import type { Product } from '../services/db';
 
 export const useNotifications = () => {
@@ -62,12 +63,14 @@ export const useNotifications = () => {
 
   // Helper to run expiry scan and alert the user (throttled per session/counts)
   const checkAndNotifyUpcomingExpirations = useCallback((products: Product[]) => {
+    const today = startOfDay(new Date());
     const active = products.filter(p => !p.isDiscarded);
-    const vencidos = active.filter(p => p.status === 'vencido');
-    const hoy = active.filter(p => p.status === 'vence_hoy');
-    const manana = active.filter(p => p.status === 'vence_manana');
+    const vencidos = active.filter(p => p.status === 'vencido' || differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) < 0);
+    const hoy = active.filter(p => p.status === 'vence_hoy' || differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) === 0);
+    const manana = active.filter(p => p.status === 'vence_manana' || differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) === 1);
+    const sieteDias = active.filter(p => p.status === 'vence_7_dias' || differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) === 7);
 
-    const currentCounts = `${vencidos.length}-${hoy.length}-${manana.length}`;
+    const currentCounts = `${vencidos.length}-${hoy.length}-${manana.length}-${sieteDias.length}`;
     const lastNotifiedSession = sessionStorage.getItem('pya_last_notified_counts');
 
     if (lastNotifiedSession === currentCounts) {
@@ -90,10 +93,20 @@ export const useNotifications = () => {
         `Hay ${hoy.length} producto${hoy.length > 1 ? 's' : ''} que vence${hoy.length > 1 ? 'n' : ''} hoy.`
       );
       notified = true;
-    } else if (manana.length > 0) {
+    }
+
+    if (manana.length > 0) {
       sendLocalNotification(
-        '🟠 Atención: Control Diario',
-        `Hay ${manana.length} producto${manana.length > 1 ? 's' : ''} que vence${manana.length > 1 ? 'n' : ''} mañana.`
+        '🟠 Aviso de Carga (1 día antes)',
+        `Hay ${manana.length} producto${manana.length > 1 ? 's' : ''} que vence${manana.length > 1 ? 'n' : ''} mañana. ¡Cargar y rotar producto!`
+      );
+      notified = true;
+    }
+
+    if (sieteDias.length > 0) {
+      sendLocalNotification(
+        '📅 Aviso Anticipado (7 días antes)',
+        `Hay ${sieteDias.length} producto${sieteDias.length > 1 ? 's' : ''} a 7 días de vencer. ¡Cargar producto al sistema!`
       );
       notified = true;
     }

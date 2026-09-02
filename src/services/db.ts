@@ -9,8 +9,11 @@ export interface Product {
   addedDate: string; // ISO string
   addedBy: string; // User who added it
   observations?: string;
-  status: 'vigente' | 'vence_hoy' | 'vence_manana' | 'vence_2_dias' | 'vence_3_dias' | 'vencido' | 'descartado' | 'proximo';
+  status: 'vigente' | 'vence_hoy' | 'vence_manana' | 'vence_2_dias' | 'vence_3_dias' | 'vence_7_dias' | 'vencido' | 'descartado' | 'proximo';
   isDiscarded: boolean;
+  isChecked?: boolean; // Checklist verification status
+  checkedAt?: string; // Timestamp when verified
+  checkedBy?: string; // User who verified
   lastUpdated?: string;
   category?: 'cárnicos' | 'embutidos' | 'lácteos' | 'vegetales' | 'general';
   quantity: number;
@@ -258,6 +261,71 @@ export const dbService = {
       user,
       timestamp: new Date().toISOString(),
       details: `Eliminado permanentemente. Ubicación original: ${product.location}, Vencimiento: ${product.expiryDate}`,
+    };
+    await tx.objectStore('audit_logs').put(auditLog);
+    await tx.done;
+  },
+
+  // Toggle checklist verification for a single product
+  async toggleProductCheck(id: string, user: string, forceStatus?: boolean): Promise<Product | undefined> {
+    const db = await initDB();
+    const product = await db.get('products', id);
+    if (!product) return undefined;
+
+    const newChecked = forceStatus !== undefined ? forceStatus : !(product.isChecked ?? true);
+    product.isChecked = newChecked;
+    product.checkedAt = newChecked ? new Date().toISOString() : undefined;
+    product.checkedBy = newChecked ? user : undefined;
+    product.lastUpdated = new Date().toISOString();
+
+    const tx = db.transaction(['products', 'audit_logs'], 'readwrite');
+    await tx.objectStore('products').put(product);
+
+    // Add audit log for verification check
+    const auditLog: AuditLog = {
+      id: crypto.randomUUID(),
+      productId: product.id,
+      productCode: product.code,
+      action: 'update',
+      user,
+      timestamp: new Date().toISOString(),
+      details: newChecked 
+        ? `Verificado en checklist de control por ${user}` 
+        : `Desmarcado de checklist de control por ${user}`,
+    };
+    await tx.objectStore('audit_logs').put(auditLog);
+    await tx.done;
+
+    return product;
+  },
+
+  // Batch mark/unmark all active products in checklist
+  async markAllChecks(verified: boolean, user: string): Promise<void> {
+    const db = await initDB();
+    const allProducts = await db.getAll('products');
+    const now = new Date().toISOString();
+
+    const tx = db.transaction(['products', 'audit_logs'], 'readwrite');
+    for (const product of allProducts) {
+      if (!product.isDiscarded) {
+        product.isChecked = verified;
+        product.checkedAt = verified ? now : undefined;
+        product.checkedBy = verified ? user : undefined;
+        product.lastUpdated = now;
+        await tx.objectStore('products').put(product);
+      }
+    }
+
+    const auditLog: AuditLog = {
+      id: crypto.randomUUID(),
+      productId: 'batch-checklist',
+      productCode: 'TODOS',
+      action: 'update',
+      user,
+      timestamp: now,
+      details: verified 
+        ? `Checklist completo: Todos los productos marcados como verificados por ${user}` 
+        : `Checklist reiniciado: Todos los productos marcados como pendientes por ${user}`,
     };
     await tx.objectStore('audit_logs').put(auditLog);
     await tx.done;

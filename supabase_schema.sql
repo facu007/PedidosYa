@@ -20,13 +20,19 @@ create table if not exists public.products (
     quantity integer not null default 1,
     unit text default 'unidades',
     weight numeric,
-    "costPrice" numeric
+    "costPrice" numeric,
+    "isChecked" boolean not null default true,
+    "checkedAt" text,
+    "checkedBy" text
 );
 
 -- Actualizaciones para tablas existentes (si ya fueron creadas anteriormente)
 alter table public.products add column if not exists unit text default 'unidades';
 alter table public.products add column if not exists weight numeric;
 alter table public.products add column if not exists "costPrice" numeric;
+alter table public.products add column if not exists "isChecked" boolean default true;
+alter table public.products add column if not exists "checkedAt" text;
+alter table public.products add column if not exists "checkedBy" text;
 
 -- 2. Tabla de Logs de Auditoría
 create table if not exists public.audit_logs (

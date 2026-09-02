@@ -4,7 +4,8 @@ import './index.css';
 import App from './App.tsx';
 import { AuthProvider } from './context/AuthContext';
 import { AppProvider } from './context/AppContext';
-import { seedDB } from './services/db';
+import { dbService, seedDB } from './services/db';
+import { syncService } from './services/syncService';
 
 // Register Service Worker for PWA (offline capability)
 import { registerSW } from 'virtual:pwa-register';
@@ -24,6 +25,11 @@ const root = createRoot(document.getElementById('root')!);
 const bootstrap = async () => {
   try {
     await seedDB();
+    // Connect with database and download inventory and load history at startup
+    if (syncService.isOnline()) {
+      const config = await dbService.getConfig();
+      syncService.syncData(config).catch(err => console.warn('Background bootstrap sync note:', err));
+    }
   } catch (error) {
     console.error('Error al inicializar la base de datos local:', error);
   }

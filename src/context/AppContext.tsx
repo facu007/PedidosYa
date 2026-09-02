@@ -21,6 +21,7 @@ const calculateProductStatus = (
   if (diff === 1) return 'vence_manana';
   if (diff === 2) return 'vence_2_dias';
   if (diff === 3) return 'vence_3_dias';
+  if (diff === 7) return 'vence_7_dias';
 
   // Determine alert threshold based on category
   let alertDays = config?.alertDays ?? 3;
@@ -58,6 +59,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterLocationType, setFilterLocationType] = useState<'todos' | 'heladera' | 'freezer'>('todos');
   const [filterStatusType, setFilterStatusType] = useState<'todos' | 'vigentes' | 'proximos' | 'vencidos'>('todos');
+  const [filterChecklistType, setFilterChecklistType] = useState<'todos' | 'verificados' | 'pendientes'>('todos');
 
   const refreshData = useCallback(async (showSpinner = true) => {
     if (showSpinner) setLoading(true);
@@ -182,10 +184,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addedDate: productData.addedDate || (existingProduct ? existingProduct.addedDate : new Date().toISOString()),
       status,
       isDiscarded: false,
+      isChecked: productData.isChecked !== undefined ? productData.isChecked : (existingProduct ? (existingProduct.isChecked ?? true) : true),
+      checkedAt: productData.checkedAt || (existingProduct ? existingProduct.checkedAt : new Date().toISOString()),
+      checkedBy: productData.checkedBy || (existingProduct ? existingProduct.checkedBy : operator),
       lastUpdated: new Date().toISOString(),
     };
 
     await dbService.saveProduct(fullProduct, operator);
+    await refreshData();
+    triggerSync().catch((err) => console.warn('Background sync warning:', err));
+  };
+
+  const toggleProductCheck = async (productId: string, forceStatus?: boolean) => {
+    const operator = user?.username || 'sistema';
+    await dbService.toggleProductCheck(productId, operator, forceStatus);
+    await refreshData();
+    triggerSync().catch((err) => console.warn('Background sync warning:', err));
+  };
+
+  const markAllChecks = async (verified: boolean) => {
+    const operator = user?.username || 'sistema';
+    await dbService.markAllChecks(verified, operator);
     await refreshData();
     triggerSync().catch((err) => console.warn('Background sync warning:', err));
   };
@@ -231,6 +250,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           addedDate: new Date().toISOString(),
           status: calculateProductStatus(p.expiryDate, p.category, config),
           isDiscarded: false,
+          isChecked: true,
+          checkedAt: new Date().toISOString(),
+          checkedBy: operator,
           lastUpdated: new Date().toISOString(),
         };
         await dbService.saveProduct(fullProduct, operator);
@@ -250,17 +272,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Get Dashboard statistics
   const getDashboardStats = () => {
+    const today = startOfDay(new Date());
     const active = products.filter(p => !p.isDiscarded);
     const vigentes = active.filter(p => p.status === 'vigente').length;
-    const venceHoy = active.filter(p => p.status === 'vence_hoy').length;
+    const venceHoy = active.filter(p => p.status === 'vence_hoy' || differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) === 0).length;
     // Orange alert: vencen en 3 días o menos (mañana, 2 días, 3 días)
-    const vence3Dias = active.filter(p => ['vence_manana', 'vence_2_dias', 'vence_3_dias'].includes(p.status)).length;
-    const vencidos = active.filter(p => p.status === 'vencido').length;
+    const vence3Dias = active.filter(p => {
+      const diff = differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today);
+      return diff >= 1 && diff <= 3;
+    }).length;
+    const vence7Dias = active.filter(p => {
+      const diff = differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today);
+      return diff === 7 || p.status === 'vence_7_dias';
+    }).length;
+    const vencidos = active.filter(p => p.status === 'vencido' || differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) < 0).length;
     
     return {
       vigentes,
       venceHoy,
       vence3Dias,
+      vence7Dias,
       vencidos,
       total: active.length,
     };
@@ -268,15 +299,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Get Alerts for Welcome Notification Card
   const getAlerts = () => {
+    const today = startOfDay(new Date());
     const active = products.filter(p => !p.isDiscarded);
-    const vencidosCount = active.filter(p => p.status === 'vencido').length;
-    const hoyCount = active.filter(p => p.status === 'vence_hoy').length;
-    const mananaCount = active.filter(p => p.status === 'vence_manana').length;
+    const vencidosCount = active.filter(p => p.status === 'vencido' || differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) < 0).length;
+    const hoyCount = active.filter(p => p.status === 'vence_hoy' || differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) === 0).length;
+    const mananaCount = active.filter(p => p.status === 'vence_manana' || differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) === 1).length;
+    const sieteDiasCount = active.filter(p => p.status === 'vence_7_dias' || differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) === 7).length;
 
     return {
       vencidosCount,
       hoyCount,
       mananaCount,
+      sieteDiasCount,
     };
   };
 
@@ -316,6 +350,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
+    // 4. Checklist Verification Filter
+    if (filterChecklistType !== 'todos') {
+      const isVerified = p.isChecked !== false;
+      if (filterChecklistType === 'verificados' && !isVerified) {
+        return false;
+      }
+      if (filterChecklistType === 'pendientes' && isVerified) {
+        return false;
+      }
+    }
+
     return true;
   });
 
@@ -330,6 +375,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         saveProduct,
         discardProduct,
         deleteProduct,
+        toggleProductCheck,
+        markAllChecks,
         saveConfig,
         importFromExcel,
         
@@ -339,6 +386,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setFilterLocationType,
         filterStatusType,
         setFilterStatusType,
+        filterChecklistType,
+        setFilterChecklistType,
         filteredProducts,
         
         getDashboardStats,

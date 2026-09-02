@@ -98,9 +98,11 @@ const mapStatusToText = (status: string): string => {
   switch (status) {
     case 'vigente': return 'Vigente';
     case 'vence_hoy': return 'Vence Hoy';
-    case 'vence_manana': return 'Vence Mañana';
+    case 'vence_manana': return 'Vence Mañana (1 día)';
     case 'vence_2_dias': return 'Vence en 2 Días';
     case 'vence_3_dias': return 'Vence en 3 Días';
+    case 'vence_7_dias': return 'Vence en 7 Días (Cargar)';
+    case 'proximo': return 'Próximo a Vencer';
     case 'vencido': return 'VENCIDO';
     case 'descartado': return 'Descartado';
     default: return status;

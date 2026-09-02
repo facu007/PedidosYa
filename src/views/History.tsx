@@ -16,6 +16,9 @@ import {
   Info,
   ArrowUpDown,
   CheckCircle,
+  CheckCircle2,
+  Circle,
+  ListChecks,
   X,
   Printer
 } from 'lucide-react';
@@ -35,7 +38,10 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
     setFilterLocationType,
     filterStatusType,
     setFilterStatusType,
+    filterChecklistType,
+    setFilterChecklistType,
     deleteProduct,
+    toggleProductCheck,
     importFromExcel
   } = useApp();
 
@@ -151,11 +157,13 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
       case 'vence_hoy':
         return <span className="text-yellow-600 dark:text-yellow-500 font-extrabold text-xs">🟡 Vence Hoy</span>;
       case 'vence_manana':
-        return <span className="text-orange-500 font-bold text-xs">🟠 Vence Mañana</span>;
+        return <span className="text-orange-500 font-extrabold text-xs animate-pulse">🟠 Vence Mañana (1 día)</span>;
       case 'vence_2_dias':
         return <span className="text-orange-500/80 font-bold text-xs">🟠 En 2 días</span>;
       case 'vence_3_dias':
         return <span className="text-orange-500/80 font-bold text-xs">🟠 En 3 días</span>;
+      case 'vence_7_dias':
+        return <span className="text-blue-600 dark:text-blue-400 font-extrabold text-xs">📅 Vence en 7 días (Cargar)</span>;
       case 'proximo':
         return <span className="text-orange-550 font-extrabold text-xs animate-pulse">🟠 Próximo a Vencer</span>;
       case 'vigente':
@@ -331,7 +339,7 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
                 <button
                   key={stat}
                   onClick={() => setFilterStatusType(stat)}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     filterStatusType === stat
                       ? 'bg-white text-slate-800 shadow-sm dark:bg-slate-800 dark:text-white'
                       : 'text-slate-400 dark:text-slate-400 hover:text-slate-750'
@@ -340,6 +348,30 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
                   {stat === 'todos' ? 'Todos' :
                    stat === 'vigentes' ? 'Vigentes' :
                    stat === 'proximos' ? 'Próximos' : 'Vencidos'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Checklist Verification Filter */}
+          <div className="flex flex-col gap-1.5 flex-1">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+              <ListChecks className="w-3 h-3 text-emerald-500" />
+              <span>Checklist</span>
+            </label>
+            <div className="flex flex-wrap bg-slate-50 dark:bg-slate-750 p-1 rounded-xl w-fit">
+              {(['todos', 'verificados', 'pendientes'] as const).map((chk) => (
+                <button
+                  key={chk}
+                  onClick={() => setFilterChecklistType(chk)}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    filterChecklistType === chk
+                      ? 'bg-white text-slate-800 shadow-sm dark:bg-slate-800 dark:text-white'
+                      : 'text-slate-400 dark:text-slate-400 hover:text-slate-750'
+                  }`}
+                >
+                  {chk === 'todos' ? 'Todos' :
+                   chk === 'verificados' ? 'Verificados' : 'Pendientes'}
                 </button>
               ))}
             </div>
@@ -357,6 +389,7 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
               <table className="w-full border-collapse text-left">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-750 border-b border-slate-200 dark:border-slate-700 text-slate-400 uppercase text-[10px] font-bold tracking-wider">
+                    <th className="p-4 w-12 text-center">Check</th>
                     <th onClick={() => toggleSort('code')} className="p-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 select-none">
                       <div className="flex items-center gap-1.5">
                         <span>Código de Barras</span>
@@ -379,15 +412,36 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
                       </div>
                     </th>
                     <th className="p-4">Estado</th>
-                    <th className="p-4">Control Martes</th>
+                    <th className="p-4">Checklist</th>
                     <th className="p-4 text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-700 text-sm font-semibold text-slate-800 dark:text-slate-200">
                   {sortedProducts.map((p) => {
+                    const isVerified = p.isChecked !== false;
                     const tControl = getTuesdayControlStatus(p);
                     return (
                       <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/10">
+                        <td className="p-4 text-center">
+                          <button
+                            onClick={async () => {
+                              await toggleProductCheck(p.id);
+                              playSuccess();
+                            }}
+                            className={`p-1 rounded-lg transition-all cursor-pointer ${
+                              isVerified 
+                                ? 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/20' 
+                                : 'text-slate-300 dark:text-slate-600 hover:text-emerald-500 hover:bg-slate-100 dark:hover:bg-slate-700'
+                            }`}
+                            title={isVerified ? 'Verificado (clic para desmarcar)' : 'Pendiente (clic para verificar)'}
+                          >
+                            {isVerified ? (
+                              <CheckCircle2 className="w-5 h-5 text-emerald-500 fill-emerald-50 dark:fill-emerald-500/20 stroke-[2.5]" />
+                            ) : (
+                              <Circle className="w-5 h-5 stroke-[2]" />
+                            )}
+                          </button>
+                        </td>
                         <td className="p-4 font-extrabold text-base">#{p.code}</td>
                         <td className="p-4">
                           {getCategoryBadge(p.category)}
@@ -416,32 +470,38 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
                         </td>
                         <td className="p-4">{getStatusLabel(p.status)}</td>
                         <td className="p-4">
-                          <div className="flex flex-col gap-0.5">
-                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded w-fit flex items-center gap-1 ${
-                              tControl.isLoaded 
-                                ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-550/10 dark:text-emerald-400' 
-                                : 'bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400'
+                          <button
+                            onClick={async () => {
+                              await toggleProductCheck(p.id);
+                              playSuccess();
+                            }}
+                            className="flex flex-col gap-0.5 text-left cursor-pointer group/chk"
+                          >
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded w-fit flex items-center gap-1 transition-all ${
+                              isVerified 
+                                ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-550/10 dark:text-emerald-400 group-hover/chk:bg-emerald-100' 
+                                : 'bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400 group-hover/chk:bg-orange-100'
                             }`}>
-                              <span className={`w-1 h-1 rounded-full ${tControl.isLoaded ? 'bg-emerald-500' : 'bg-orange-500'}`} />
-                              <span>{tControl.isLoaded ? 'Cargado' : 'Pendiente'}</span>
+                              <span className={`w-1 h-1 rounded-full ${isVerified ? 'bg-emerald-500' : 'bg-orange-500'}`} />
+                              <span>{isVerified ? 'Verificado' : 'Pendiente'}</span>
                             </span>
                             <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">
                               {tControl.label}
                             </span>
-                          </div>
+                          </button>
                         </td>
                         <td className="p-4 text-right">
                           <div className="flex justify-end gap-1">
                             <button
                               onClick={() => printProductLabel(p)}
-                              className="p-2 text-slate-450 hover:text-slate-800 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                              className="p-2 text-slate-450 hover:text-slate-800 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
                               title="Imprimir Etiqueta"
                             >
                               <Printer className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => onEditProduct(p.id)}
-                              className="p-2 text-slate-450 hover:text-slate-800 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                              className="p-2 text-slate-450 hover:text-slate-800 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
                               title="Editar"
                             >
                               <Edit className="w-4 h-4" />
@@ -449,7 +509,7 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
                             {isAdmin && (
                               <button
                                 onClick={() => triggerDelete(p.id)}
-                                className="p-2 text-slate-450 hover:text-[#FF1744] rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                                className="p-2 text-slate-450 hover:text-[#FF1744] rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer"
                                 title="Eliminar"
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -466,11 +526,25 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
 
             <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-700">
               {sortedProducts.map((p) => {
+                const isVerified = p.isChecked !== false;
                 const tControl = getTuesdayControlStatus(p);
                 return (
                   <div key={p.id} className="p-4 space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
+                        <button
+                          onClick={async () => {
+                            await toggleProductCheck(p.id);
+                            playSuccess();
+                          }}
+                          className="p-1 rounded-lg cursor-pointer"
+                        >
+                          {isVerified ? (
+                            <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                          ) : (
+                            <Circle className="w-5 h-5 text-slate-400" />
+                          )}
+                        </button>
                         <span className="font-extrabold text-base text-slate-850 dark:text-white">#{p.code}</span>
                         {getCategoryBadge(p.category)}
                       </div>
@@ -491,15 +565,21 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
                         </p>
                       </div>
                       <div>
-                        <p className="text-[10px] uppercase font-bold text-slate-400/80">Control Martes</p>
-                        <span className={`mt-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded w-fit flex items-center gap-1 ${
-                          tControl.isLoaded 
-                            ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-555/10 dark:text-emerald-400' 
-                            : 'bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400'
-                        }`}>
-                          <span className={`w-1 h-1 rounded-full ${tControl.isLoaded ? 'bg-emerald-500' : 'bg-orange-500'}`} />
-                          <span>{tControl.isLoaded ? 'Cargado' : 'Pendiente'}</span>
-                        </span>
+                        <p className="text-[10px] uppercase font-bold text-slate-400/80">Checklist</p>
+                        <button
+                          onClick={async () => {
+                            await toggleProductCheck(p.id);
+                            playSuccess();
+                          }}
+                          className={`mt-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded w-fit flex items-center gap-1 cursor-pointer ${
+                            isVerified 
+                              ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-555/10 dark:text-emerald-400' 
+                              : 'bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400'
+                          }`}
+                        >
+                          <span className={`w-1 h-1 rounded-full ${isVerified ? 'bg-emerald-500' : 'bg-orange-500'}`} />
+                          <span>{isVerified ? 'Verificado' : 'Pendiente'}</span>
+                        </button>
                       </div>
                     </div>
 
@@ -514,14 +594,14 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
                       <div className="flex gap-1">
                         <button
                           onClick={() => onEditProduct(p.id)}
-                          className="p-2 text-slate-450 hover:text-slate-800 dark:hover:text-white rounded-lg bg-slate-50 dark:bg-slate-700/50"
+                          className="p-2 text-slate-450 hover:text-slate-800 dark:hover:text-white rounded-lg bg-slate-50 dark:bg-slate-700/50 cursor-pointer"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
                         {isAdmin && (
                           <button
                             onClick={() => triggerDelete(p.id)}
-                            className="p-2 text-slate-450 hover:text-[#FF1744] rounded-lg bg-red-50/50 dark:bg-red-500/10"
+                            className="p-2 text-slate-450 hover:text-[#FF1744] rounded-lg bg-red-50/50 dark:bg-red-500/10 cursor-pointer"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>

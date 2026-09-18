@@ -17,6 +17,7 @@ create table if not exists public.products (
     "isDiscarded" boolean not null default false,
     "lastUpdated" text,
     category text,
+    sector text,
     quantity integer not null default 1,
     unit text default 'unidades',
     weight numeric,
@@ -33,6 +34,7 @@ alter table public.products add column if not exists "costPrice" numeric;
 alter table public.products add column if not exists "isChecked" boolean default true;
 alter table public.products add column if not exists "checkedAt" text;
 alter table public.products add column if not exists "checkedBy" text;
+alter table public.products add column if not exists sector text;
 
 -- 2. Tabla de Logs de Auditoría
 create table if not exists public.audit_logs (
@@ -49,10 +51,13 @@ create table if not exists public.audit_logs (
 create table if not exists public.users (
     username text primary key,
     role text not null,
+    sector text,
     "passwordHash" text not null,
     "isDeleted" boolean not null default false,
     "lastUpdated" text
 );
+
+alter table public.users add column if not exists sector text;
 
 -- 4. Tabla de Configuración
 create table if not exists public.config (

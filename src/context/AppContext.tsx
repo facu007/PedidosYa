@@ -22,6 +22,7 @@ const calculateProductStatus = (
   if (diff === 2) return 'vence_2_dias';
   if (diff === 3) return 'vence_3_dias';
   if (diff === 7) return 'vence_7_dias';
+  if (diff === 10) return 'vence_10_dias';
 
   // Determine alert threshold based on category
   let alertDays = config?.alertDays ?? 3;
@@ -60,6 +61,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [filterLocationType, setFilterLocationType] = useState<'todos' | 'heladera' | 'freezer'>('todos');
   const [filterStatusType, setFilterStatusType] = useState<'todos' | 'vigentes' | 'proximos' | 'vencidos'>('todos');
   const [filterChecklistType, setFilterChecklistType] = useState<'todos' | 'verificados' | 'pendientes'>('todos');
+  const [selectedSector, setSelectedSector] = useState<string>('todos');
+
+  // Compute effective sector based on user profile and role
+  // Employees are strictly restricted to their assigned sector
+  // Admins can freely select 'todos' or any sector
+  const effectiveSector = (user?.role === 'empleado' && user?.sector)
+    ? user.sector.toLowerCase()
+    : selectedSector.toLowerCase();
+
+  // Products scoped by effective sector
+  const scopedProducts = React.useMemo(() => {
+    if (effectiveSector === 'todos') {
+      return products;
+    }
+    return products.filter((p) => {
+      const pSector = (p.sector || '').toLowerCase().trim();
+      return pSector === effectiveSector;
+    });
+  }, [products, effectiveSector]);
+
+  // Sector Counts for active products across the entire database
+  const getSectorCounts = useCallback(() => {
+    const active = products.filter(p => !p.isDiscarded);
+    const counts: Record<string, number> = {
+      todos: active.length,
+      snack: 0,
+      kiosco: 0,
+      desayuno: 0,
+      almacen: 0,
+      galletas: 0,
+    };
+    for (const p of active) {
+      const s = (p.sector || '').toLowerCase().trim();
+      if (s && counts[s] !== undefined) {
+        counts[s]++;
+      }
+    }
+    return counts;
+  }, [products]);
 
   const refreshData = useCallback(async (showSpinner = true) => {
     if (showSpinner) setLoading(true);
@@ -175,8 +215,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     
     const existingProduct = products.find(p => p.id === productData.id);
 
+    // Determine assigned sector
+    let assignedSector = productData.sector;
+    if (!assignedSector) {
+      if (user?.role === 'empleado' && user?.sector) {
+        assignedSector = user.sector;
+      } else if (existingProduct?.sector) {
+        assignedSector = existingProduct.sector;
+      } else if (selectedSector !== 'todos') {
+        assignedSector = selectedSector;
+      } else {
+        assignedSector = 'snack';
+      }
+    }
+
     const fullProduct: Product = {
       ...productData,
+      sector: assignedSector,
       quantity: productData.quantity ?? (existingProduct ? existingProduct.quantity : 1),
       unit: productData.unit || (existingProduct ? existingProduct.unit : (productData.category === 'cárnicos' || productData.weight !== undefined ? 'kg' : 'unidades')),
       weight: productData.weight !== undefined ? productData.weight : (existingProduct ? existingProduct.weight : undefined),
@@ -191,41 +246,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     await dbService.saveProduct(fullProduct, operator);
-    await refreshData();
+    await refreshData(false);
     triggerSync().catch((err) => console.warn('Background sync warning:', err));
   };
 
   const toggleProductCheck = async (productId: string, forceStatus?: boolean) => {
     const operator = user?.username || 'sistema';
     await dbService.toggleProductCheck(productId, operator, forceStatus);
-    await refreshData();
+    await refreshData(false);
     triggerSync().catch((err) => console.warn('Background sync warning:', err));
   };
 
   const markAllChecks = async (verified: boolean) => {
     const operator = user?.username || 'sistema';
     await dbService.markAllChecks(verified, operator);
-    await refreshData();
+    await refreshData(false);
     triggerSync().catch((err) => console.warn('Background sync warning:', err));
   };
 
   const discardProduct = async (id: string) => {
     const operator = user?.username || 'sistema';
     await dbService.discardProduct(id, operator);
-    await refreshData();
+    await refreshData(false);
     triggerSync().catch((err) => console.warn('Background sync warning:', err));
   };
 
   const deleteProduct = async (id: string) => {
     const operator = user?.username || 'sistema';
     await dbService.deleteProduct(id, operator);
-    await refreshData();
+    await refreshData(false);
     triggerSync().catch((err) => console.warn('Background sync warning:', err));
   };
 
   const saveConfig = async (newConfig: AppConfig) => {
     await dbService.saveConfig(newConfig);
-    await refreshData();
+    await refreshData(false);
     triggerSync(newConfig).catch((err) => console.warn('Background sync warning:', err));
   };
 
@@ -240,6 +295,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           id: p.id || crypto.randomUUID(),
           code: p.code,
           category: p.category,
+          sector: p.sector || (user?.role === 'empleado' && user?.sector ? user.sector : (selectedSector !== 'todos' ? selectedSector : 'snack')),
           location: p.location,
           expiryDate: p.expiryDate,
           quantity: p.quantity ?? 1,
@@ -263,17 +319,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     if (imported > 0) {
-      await refreshData();
+      await refreshData(false);
       triggerSync();
     }
 
     return { imported, errors };
   };
 
-  // Get Dashboard statistics
+  // Get Dashboard statistics scoped to the effective sector
   const getDashboardStats = () => {
     const today = startOfDay(new Date());
-    const active = products.filter(p => !p.isDiscarded);
+    const active = scopedProducts.filter(p => !p.isDiscarded);
     const vigentes = active.filter(p => p.status === 'vigente').length;
     const venceHoy = active.filter(p => p.status === 'vence_hoy' || differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) === 0).length;
     // Orange alert: vencen en 3 días o menos (mañana, 2 días, 3 días)
@@ -285,6 +341,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const diff = differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today);
       return diff === 7 || p.status === 'vence_7_dias';
     }).length;
+    const vence10Dias = active.filter(p => {
+      const diff = differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today);
+      return diff === 10 || p.status === 'vence_10_dias';
+    }).length;
     const vencidos = active.filter(p => p.status === 'vencido' || differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) < 0).length;
     
     return {
@@ -292,30 +352,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       venceHoy,
       vence3Dias,
       vence7Dias,
+      vence10Dias,
       vencidos,
       total: active.length,
     };
   };
 
-  // Get Alerts for Welcome Notification Card
+  // Get Alerts for Welcome Notification Card scoped to the effective sector
   const getAlerts = () => {
     const today = startOfDay(new Date());
-    const active = products.filter(p => !p.isDiscarded);
+    const active = scopedProducts.filter(p => !p.isDiscarded);
     const vencidosCount = active.filter(p => p.status === 'vencido' || differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) < 0).length;
     const hoyCount = active.filter(p => p.status === 'vence_hoy' || differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) === 0).length;
     const mananaCount = active.filter(p => p.status === 'vence_manana' || differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) === 1).length;
     const sieteDiasCount = active.filter(p => p.status === 'vence_7_dias' || differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) === 7).length;
+    const diezDiasCount = active.filter(p => p.status === 'vence_10_dias' || differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) === 10).length;
 
     return {
       vencidosCount,
       hoyCount,
       mananaCount,
       sieteDiasCount,
+      diezDiasCount,
     };
   };
 
-  // Filtering Logic
-  const filteredProducts = products.filter((p) => {
+  // Filtering Logic based on scopedProducts
+  const filteredProducts = scopedProducts.filter((p) => {
     // 1. Search Query (last 5 digits of code)
     if (searchQuery.trim() !== '') {
       if (!p.code.includes(searchQuery.trim())) {
@@ -367,7 +430,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   return (
     <AppContext.Provider
       value={{
-        products,
+        products: scopedProducts,
+        allProducts: products,
         auditLogs,
         config,
         loading,
@@ -388,7 +452,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setFilterStatusType,
         filterChecklistType,
         setFilterChecklistType,
+        selectedSector,
+        setSelectedSector,
+        effectiveSector,
         filteredProducts,
+        getSectorCounts,
         
         getDashboardStats,
         getAlerts,

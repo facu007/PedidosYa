@@ -3,10 +3,12 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useApp } from '../hooks/useApp';
+import { useAuth } from '../hooks/useAuth';
 import { useAudio } from '../hooks/useAudio';
 import { BarcodeScanner } from '../components/BarcodeScanner';
 import { ConfirmationAnimation } from '../components/ConfirmationAnimation';
 import type { Product } from '../services/db';
+import { SECTORS } from '../utils/sectors';
 import { 
   X, 
   Camera, 
@@ -20,7 +22,9 @@ import {
   Minus,
   Tag,
   Scale,
-  DollarSign
+  DollarSign,
+  Layers,
+  RefreshCw
 } from 'lucide-react';
 
 interface ProductFormProps {
@@ -60,6 +64,7 @@ const locations = [
 
 const productSchema = z.object({
   code: z.string().min(1, 'Ingrese o escanee el código del producto.'),
+  sector: z.string().min(1, 'Seleccione un sector.'),
   category: z.enum(['cárnicos', 'embutidos', 'lácteos', 'vegetales', 'general']),
   location: z.string().min(1, 'Seleccione o ingrese una ubicación.'),
   expiryDate: z.string().min(1, 'Seleccione una fecha de vencimiento.'),
@@ -74,10 +79,17 @@ const productSchema = z.object({
 type ProductFormValues = z.infer<typeof productSchema>;
 
 export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, productIdToEdit }) => {
-  const { saveProduct, products } = useApp();
+  const { user } = useAuth();
+  const { saveProduct, products, selectedSector } = useApp();
   const { playSuccess, playError } = useAudio();
   const [scannerMode, setScannerMode] = useState<'code' | 'location' | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Compute initial sector default
+  const defaultSector = (user?.role === 'empleado' && user?.sector)
+    ? user.sector
+    : (selectedSector !== 'todos' ? selectedSector : 'snack');
 
   const {
     register,
@@ -90,6 +102,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
     resolver: zodResolver(productSchema),
     defaultValues: {
       code: '',
+      sector: defaultSector,
       category: 'general',
       location: 'Heladera 1',
       expiryDate: '',
@@ -119,6 +132,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
 
   const loadProductValues = useCallback((prod: Product) => {
     setValue('code', prod.code);
+    setValue('sector', prod.sector || defaultSector);
     setValue('category', prod.category || 'general');
     setValue('location', prod.location);
     setValue('expiryDate', prod.expiryDate);
@@ -130,7 +144,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
     setValue('quantity', prod.quantity ?? 1);
     setValue('weight', prod.weight);
     setValue('costPrice', prod.costPrice);
-  }, [setValue]);
+  }, [setValue, defaultSector]);
 
   // Auto switch unit to 'kg' when selecting 'cárnicos' if creating a new product
   useEffect(() => {
@@ -141,8 +155,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
     }
   }, [selectedCategory, productIdToEdit, setValue]);
 
-  // Load product to edit if productIdToEdit changes
+  // Load product to edit if productIdToEdit changes or reset when modal opens
   useEffect(() => {
+    if (!isOpen) return;
+
     if (productIdToEdit) {
       const prod = products.find((p) => p.id === productIdToEdit);
       if (prod) {
@@ -151,6 +167,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
     } else {
       reset({
         code: '',
+        sector: defaultSector,
         category: 'general',
         location: 'Heladera 1',
         expiryDate: '',
@@ -162,11 +179,14 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
         costPrice: undefined,
       });
     }
-  }, [productIdToEdit, products, loadProductValues, reset, isOpen]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, productIdToEdit]);
 
   if (!isOpen) return null;
 
   const onSubmit = async (values: ProductFormValues) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     try {
       const weightVal = values.unit === 'kg' && values.weight !== undefined && values.weight !== null && !isNaN(values.weight) ? values.weight : undefined;
       const costVal = values.costPrice !== undefined && values.costPrice !== null && !isNaN(values.costPrice) ? values.costPrice : undefined;
@@ -180,6 +200,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
       await saveProduct({
         id: targetId,
         code: values.code.trim(),
+        sector: values.sector,
         category: values.category,
         location: values.location,
         expiryDate: values.expiryDate,
@@ -195,6 +216,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
     } catch (err) {
       console.error(err);
       playError();
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -218,8 +241,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
   };
 
   const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.trim();
-    setValue('code', value);
+    const value = e.target.value;
+    setValue('code', value, { shouldValidate: errors.code !== undefined });
   };
 
   const isEditingExisting = Boolean(productIdToEdit || duplicateProduct);
@@ -256,7 +279,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
                 <div className="relative flex-1">
                   <input
                     type="text"
-                    value={codeValue}
+                    value={codeValue ?? ''}
                     onChange={handleCodeChange}
                     placeholder="Ej. 7791234567890"
                     className={`w-full px-4 py-3 rounded-xl border ${
@@ -318,6 +341,34 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
                     Registrado en <span className="font-bold text-slate-800 dark:text-white">{duplicateProduct.location}</span> con fecha <span className="font-bold text-slate-800 dark:text-white">{new Date(duplicateProduct.expiryDate + 'T00:00:00').toLocaleDateString()}</span> ({duplicateProduct.quantity ?? 1} un.). Puedes modificar la fecha y la cantidad a continuación.
                   </p>
                 </div>
+              )}
+            </div>
+
+            {/* Sector selector */}
+            <div>
+              <label className="block text-xs font-bold text-[#000000] dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+                <span className="flex items-center gap-1">
+                  <Layers className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Sector Asignado</span>
+                </span>
+                {user?.role === 'empleado' && user?.sector && (
+                  <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold bg-blue-50 dark:bg-blue-500/10 px-2 py-0.5 rounded-md">
+                    Tu Sector
+                  </span>
+                )}
+              </label>
+              <select
+                {...register('sector')}
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] transition-all text-sm font-semibold cursor-pointer"
+              >
+                {SECTORS.map((sec) => (
+                  <option key={sec.id} value={sec.id}>
+                    {sec.icon} {sec.label}
+                  </option>
+                ))}
+              </select>
+              {errors.sector && (
+                <p className="text-xs text-red-500 font-semibold mt-1.5">{errors.sector.message}</p>
               )}
             </div>
 
@@ -578,10 +629,20 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
               
               <button
                 type="submit"
-                className="flex-1 py-3 px-4 bg-[#FF1744] text-white font-bold rounded-xl hover:bg-red-600 transition-all flex items-center justify-center gap-1.5 shadow-md shadow-red-200 dark:shadow-none text-sm cursor-pointer"
+                disabled={isSubmitting}
+                className="flex-1 py-3 px-4 bg-[#FF1744] text-white font-bold rounded-xl hover:bg-red-600 transition-all flex items-center justify-center gap-1.5 shadow-md shadow-red-200 dark:shadow-none text-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Save className="w-4 h-4" />
-                <span>{isEditingExisting ? 'Guardar Cambios' : 'Registrar'}</span>
+                {isSubmitting ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Guardando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    <span>{isEditingExisting ? 'Guardar Cambios' : 'Registrar'}</span>
+                  </>
+                )}
               </button>
             </div>
 

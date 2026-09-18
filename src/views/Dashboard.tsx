@@ -22,6 +22,8 @@ import { formatDistanceToNow, differenceInCalendarDays, startOfDay } from 'date-
 import { es } from 'date-fns/locale';
 import { getTuesdayControlStatus } from '../utils/tuesdayControl';
 import { printProductLabel } from '../utils/labelPrinter';
+import { SECTORS, getSectorConfig, formatSectorLabel } from '../utils/sectors';
+import { Layers } from 'lucide-react';
 
 interface DashboardProps {
   setView: (view: string) => void;
@@ -40,9 +42,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
     discardProduct,
     setFilterStatusType,
     toggleProductCheck,
-    markAllChecks
+    markAllChecks,
+    selectedSector,
+    setSelectedSector,
+    effectiveSector,
+    getSectorCounts
   } = useApp();
   
+  const sectorCounts = getSectorCounts();
   const { permission, requestPermission, checkAndNotifyUpcomingExpirations } = useNotifications();
   const [listFilter, setListFilter] = useState<'todos' | 'alertas' | 'pendientes'>('todos');
   const stats = getDashboardStats();
@@ -95,7 +102,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
   // Filter list based on selected tab
   const displayedProducts = sortedActiveProducts.filter(p => {
     if (listFilter === 'alertas') {
-      return ['vencido', 'vence_hoy', 'vence_manana', 'vence_2_dias', 'vence_3_dias', 'vence_7_dias', 'proximo'].includes(p.status);
+      return ['vencido', 'vence_hoy', 'vence_manana', 'vence_2_dias', 'vence_3_dias', 'vence_7_dias', 'vence_10_dias', 'proximo'].includes(p.status);
     }
     if (listFilter === 'pendientes') {
       return p.isChecked === false;
@@ -126,6 +133,93 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
         </div>
       )}
 
+      {/* Sector Selection Bar (Admin) or Sector Badge Indicator (Empleado) */}
+      {isAdmin ? (
+        <div className="bg-white dark:bg-slate-800 p-4 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-[#FF1744]/10 text-[#FF1744] rounded-lg">
+                <Layers className="w-4 h-4" />
+              </div>
+              <span className="text-xs font-black text-slate-850 dark:text-white uppercase tracking-wider">
+                Sectores de Sucursal
+              </span>
+            </div>
+            <span className="text-[11px] font-bold text-slate-400">
+              {selectedSector === 'todos' 
+                ? 'Visualizando todos los sectores' 
+                : `Filtrado por: ${formatSectorLabel(selectedSector)}`}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+            {/* "Todos" button */}
+            <button
+              onClick={() => setSelectedSector('todos')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-2xl text-xs font-extrabold transition-all shrink-0 cursor-pointer shadow-xs ${
+                selectedSector === 'todos'
+                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-md'
+                  : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-750 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
+              }`}
+            >
+              <span>🌟 Todos</span>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${
+                selectedSector === 'todos'
+                  ? 'bg-white/20 dark:bg-slate-900/20 text-inherit'
+                  : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+              }`}>
+                {sectorCounts.todos}
+              </span>
+            </button>
+
+            {/* Sector buttons */}
+            {SECTORS.map((sec) => {
+              const isSelected = selectedSector.toLowerCase() === sec.id;
+              const count = sectorCounts[sec.id] || 0;
+              return (
+                <button
+                  key={sec.id}
+                  onClick={() => setSelectedSector(sec.id)}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-2xl text-xs font-extrabold transition-all shrink-0 cursor-pointer border ${
+                    isSelected
+                      ? `${sec.badgeBg} ${sec.badgeText} ${sec.border} ring-2 ring-[#FF1744]/20 shadow-sm scale-102`
+                      : 'bg-slate-50 dark:bg-slate-750 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                  }`}
+                >
+                  <span>{sec.icon} {sec.label}</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                    isSelected
+                      ? 'bg-black/10 dark:bg-white/10 text-inherit'
+                      : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
+                  }`}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <div className="bg-gradient-to-r from-blue-500/10 via-slate-100 to-indigo-500/10 dark:from-blue-500/15 dark:to-indigo-500/15 p-4 rounded-3xl border border-blue-200 dark:border-blue-500/30 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-black text-lg shadow-sm shrink-0">
+              {getSectorConfig(effectiveSector)?.icon || '📍'}
+            </div>
+            <div>
+              <p className="text-[10px] uppercase font-black tracking-widest text-blue-600 dark:text-blue-400">
+                Sector Asignado a tu Perfil
+              </p>
+              <h4 className="text-base font-extrabold text-slate-850 dark:text-white capitalize">
+                {formatSectorLabel(effectiveSector)}
+              </h4>
+            </div>
+          </div>
+          <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 hidden sm:inline">
+            🔒 Visualizando únicamente vencimientos de este sector
+          </span>
+        </div>
+      )}
+
       {/* Welcome, Alerts & Checklist Control Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
         {/* Welcome Box */}
@@ -135,14 +229,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
               <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
                 isAdmin ? 'bg-amber-400 text-slate-900 shadow-sm' : 'bg-white/20 text-white backdrop-blur-sm'
               }`}>
-                {isAdmin ? '👑 MODO ADMINISTRADOR' : '👤 MODO EMPLEADO OPERATIVO'}
+                {isAdmin ? '👑 MODO ADMINISTRADOR' : `👤 MODO EMPLEADO (${formatSectorLabel(effectiveSector).toUpperCase()})`}
               </span>
             </div>
             <h2 className="text-2xl font-extrabold mb-1">¡Hola, {user?.username || 'Sucursal'}!</h2>
             <p className="text-white/80 text-xs font-medium">
               {isAdmin 
                 ? 'Gestión total de vencimientos, checklist de control y sincronización nube.' 
-                : 'Control operativo de cargas y checklist de verificación en sucursal.'}
+                : `Control operativo de cargas y checklist del sector ${formatSectorLabel(effectiveSector)}.`}
             </p>
           </div>
           <div className="mt-6 flex flex-wrap gap-2">
@@ -157,7 +251,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
         </div>
 
         {/* Actionable Alerts Panel */}
-        {(alerts.vencidosCount > 0 || alerts.hoyCount > 0 || alerts.mananaCount > 0 || alerts.sieteDiasCount > 0) ? (
+        {(alerts.vencidosCount > 0 || alerts.hoyCount > 0 || alerts.mananaCount > 0 || alerts.sieteDiasCount > 0 || alerts.diezDiasCount > 0) ? (
           <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between">
             <div>
               <div className="flex items-center gap-2 mb-3">
@@ -189,17 +283,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
                     <span>📅 Hay {alerts.sieteDiasCount} {alerts.sieteDiasCount === 1 ? 'producto a 7 días de vencer (Aviso de carga)' : 'productos a 7 días de vencer (Aviso de carga)'}.</span>
                   </div>
                 )}
+                {alerts.diezDiasCount > 0 && (
+                  <div className="flex items-center gap-2 text-xs font-semibold text-purple-600 dark:text-purple-400">
+                    <span className="w-2.5 h-2.5 rounded-full bg-purple-500" />
+                    <span>📅 Hay {alerts.diezDiasCount} {alerts.diezDiasCount === 1 ? 'producto a 10 días de vencer (Aviso anticipado)' : 'productos a 10 días de vencer (Aviso anticipado)'}.</span>
+                  </div>
+                )}
               </div>
             </div>
             <div className="text-[10px] text-slate-400 dark:text-slate-400 mt-4 italic font-medium">
-              Avisos automáticos a 7 días y 1 día antes del vencimiento.
+              Avisos automáticos a 10 días, 7 días y 1 día antes del vencimiento.
             </div>
           </div>
         ) : (
           <div className="bg-green-50 dark:bg-green-950/20 p-6 rounded-3xl border border-green-100 dark:border-green-900/30 flex flex-col justify-center items-center text-center">
             <CheckCircle className="w-10 h-10 text-green-500 mb-2" />
             <h4 className="font-bold text-sm text-green-800 dark:text-green-400">¡Todo al día!</h4>
-            <p className="text-xs text-green-650 dark:text-green-450 mt-1 max-w-xs">No hay productos vencidos ni con alertas de carga a 7 días o 1 día.</p>
+            <p className="text-xs text-green-650 dark:text-green-450 mt-1 max-w-xs">No hay productos vencidos ni con alertas de carga a 10 días, 7 días o 1 día.</p>
           </div>
         )}
 
@@ -274,7 +374,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
       </div>
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
         {/* Vencidos Card */}
         <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between">
           <span className="text-xs text-slate-400 dark:text-slate-400 font-bold uppercase tracking-wider">Vencidos</span>
@@ -320,6 +420,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
           </div>
           <div className="w-full bg-blue-100 dark:bg-blue-500/10 h-1.5 rounded-full mt-3 overflow-hidden">
             <div className="bg-blue-600 h-full" style={{ width: `${stats.total > 0 ? (stats.vence7Dias / stats.total) * 100 : 0}%` }} />
+          </div>
+        </div>
+
+        {/* 10 Días Card */}
+        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-purple-200 dark:border-purple-500/30 shadow-sm flex flex-col justify-between">
+          <span className="text-xs text-purple-600 dark:text-purple-400 font-bold uppercase tracking-wider">A 10 Días (Aviso)</span>
+          <div className="flex items-baseline gap-2 mt-2">
+            <span className="text-2xl font-black text-purple-600 dark:text-purple-400">{stats.vence10Dias}</span>
+            <span className="text-xs text-slate-400">un.</span>
+          </div>
+          <div className="w-full bg-purple-100 dark:bg-purple-500/10 h-1.5 rounded-full mt-3 overflow-hidden">
+            <div className="bg-purple-600 h-full" style={{ width: `${stats.total > 0 ? (stats.vence10Dias / stats.total) * 100 : 0}%` }} />
           </div>
         </div>
 
@@ -427,7 +539,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
                       product.status === 'vence_hoy' || dateDiff === 0 ? 'bg-yellow-500' :
                       product.status === 'vence_manana' || dateDiff === 1 ? 'bg-orange-500' :
                       ['vence_2_dias', 'vence_3_dias'].includes(product.status) || (dateDiff >= 2 && dateDiff <= 3) ? 'bg-orange-400' :
-                      product.status === 'vence_7_dias' || dateDiff === 7 ? 'bg-blue-500' : 'bg-green-500'
+                      product.status === 'vence_7_dias' || dateDiff === 7 ? 'bg-blue-500' :
+                      product.status === 'vence_10_dias' || dateDiff === 10 ? 'bg-purple-500' : 'bg-green-500'
                     }`} />
                     
                     <div>
@@ -435,9 +548,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
                         <span className="font-extrabold text-sm text-slate-800 dark:text-white">
                           #{product.code}
                         </span>
+                        {product.sector && (
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded border ${
+                            getSectorConfig(product.sector)?.badgeBg || 'bg-slate-100 dark:bg-slate-700'
+                          } ${
+                            getSectorConfig(product.sector)?.badgeText || 'text-slate-700 dark:text-slate-300'
+                          } ${
+                            getSectorConfig(product.sector)?.border || 'border-slate-200 dark:border-slate-600'
+                          }`}>
+                            {formatSectorLabel(product.sector)}
+                          </span>
+                        )}
                         <span className="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 font-bold px-2 py-0.5 rounded">
                           {product.location}
                         </span>
+                        {dateDiff === 10 && (
+                          <span className="text-[10px] bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 font-extrabold px-2 py-0.5 rounded border border-purple-200 dark:border-purple-500/20">
+                            📅 10 días (Aviso)
+                          </span>
+                        )}
                         {dateDiff === 7 && (
                           <span className="text-[10px] bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 font-extrabold px-2 py-0.5 rounded border border-blue-200 dark:border-blue-500/20">
                             📅 7 días (Cargar)

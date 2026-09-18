@@ -8,6 +8,7 @@ export interface AuthContextType {
   login: (username: string, passwordHash: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   createUser: (newUser: User) => Promise<{ success: boolean; error?: string }>;
+  updateUser: (user: User) => Promise<{ success: boolean; error?: string }>;
   deleteUser: (username: string) => Promise<{ success: boolean; error?: string }>;
   refreshUsers: () => Promise<void>;
 }

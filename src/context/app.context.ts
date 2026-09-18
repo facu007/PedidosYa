@@ -22,12 +22,18 @@ export interface AppContextType {
   setFilterStatusType: (type: 'todos' | 'vigentes' | 'proximos' | 'vencidos') => void;
   filterChecklistType: 'todos' | 'verificados' | 'pendientes';
   setFilterChecklistType: (type: 'todos' | 'verificados' | 'pendientes') => void;
+  selectedSector: string;
+  setSelectedSector: (sector: string) => void;
+  effectiveSector: string;
+  allProducts: Product[];
   filteredProducts: Product[];
+  getSectorCounts: () => Record<string, number>;
   getDashboardStats: () => {
     vigentes: number;
     venceHoy: number;
     vence3Dias: number;
     vence7Dias: number;
+    vence10Dias: number;
     vencidos: number;
     total: number;
   };
@@ -36,6 +42,7 @@ export interface AppContextType {
     hoyCount: number;
     mananaCount: number;
     sieteDiasCount: number;
+    diezDiasCount: number;
   };
   triggerSync: () => Promise<void>;
   isSyncing: boolean;

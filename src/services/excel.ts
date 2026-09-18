@@ -5,6 +5,7 @@ export const exportProductsToExcel = (products: Product[], locationFilterName?: 
   // Map products to a user-friendly format for Excel
   const dataToExport = products.map((p) => ({
     'Código de Barras': p.code,
+    'Sector': p.sector || 'snack',
     'Categoría': p.category || 'general',
     'Ubicación': p.location,
     'Unidad': p.unit || (p.weight !== undefined ? 'kg' : 'unidades'),
@@ -65,6 +66,7 @@ export const parseProductsFromExcel = (file: File): Promise<Partial<Product>[]> 
         const parsedProducts: Partial<Product>[] = rawRows.map((row) => {
           // Find fields regardless of slight variations in header names
           const codeVal = row['Código de Barras'] || row['Código (Últimos 5 números)'] || row['Código'] || row['codigo'] || row['Code'] || '';
+          const sectorVal = row['Sector'] || row['sector'] || '';
           const categoryVal = row['Categoría'] || row['categoría'] || row['categoria'] || row['Category'] || 'general';
           const locationVal = row['Ubicación'] || row['ubicacion'] || row['Location'] || '';
           let expiryVal = row['Fecha de Vencimiento'] || row['Vencimiento'] || row['vencimiento'] || row['Expiry Date'] || '';
@@ -76,6 +78,11 @@ export const parseProductsFromExcel = (file: File): Promise<Partial<Product>[]> 
 
           // Format code string
           const code = codeVal.toString().trim();
+
+          const rawSector = sectorVal.toString().trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+          const sector = ['snack', 'kiosco', 'desayuno', 'almacen', 'galletas'].includes(rawSector)
+            ? rawSector
+            : (rawSector.includes('kios') ? 'kiosco' : rawSector.includes('desay') ? 'desayuno' : rawSector.includes('alma') ? 'almacen' : rawSector.includes('gall') ? 'galletas' : 'snack');
           
           const rawCat = categoryVal.toString().trim().toLowerCase();
           const category = ['cárnicos', 'embutidos', 'lácteos', 'vegetales', 'general'].includes(rawCat)
@@ -118,6 +125,7 @@ export const parseProductsFromExcel = (file: File): Promise<Partial<Product>[]> 
 
           return {
             code,
+            sector,
             category,
             location: locationVal.toString().trim(),
             expiryDate,
@@ -148,6 +156,7 @@ const mapStatusToSpanish = (status: string): string => {
     case 'vence_2_dias': return '🟠 Vence en 2 días';
     case 'vence_3_dias': return '🟠 Vence en 3 días';
     case 'vence_7_dias': return '📅 Vence en 7 días (Cargar producto)';
+    case 'vence_10_dias': return '📅 Vence en 10 días (Aviso anticipado)';
     case 'proximo': return '🟠 Próximo a Vencer';
     case 'vencido': return '🔴 Vencido';
     case 'descartado': return '⚫ Descartado';

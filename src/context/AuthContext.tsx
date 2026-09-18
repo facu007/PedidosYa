@@ -105,6 +105,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updateUser = async (updatedUser: User): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const userWithMeta = {
+        ...updatedUser,
+        isDeleted: false,
+        lastUpdated: new Date().toISOString()
+      };
+      await dbService.saveUser(userWithMeta);
+      if (user?.username === updatedUser.username) {
+        setUser(userWithMeta);
+        localStorage.setItem('pedidosya_user', JSON.stringify({ username: userWithMeta.username, role: userWithMeta.role }));
+      }
+      await refreshUsers();
+      triggerBackgroundSync();
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: `Error al actualizar usuario: ${e.message || e}` };
+    }
+  };
+
   const deleteUser = async (username: string): Promise<{ success: boolean; error?: string }> => {
     try {
       if (user?.username === username) {
@@ -126,7 +146,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, users, loading, login, logout, createUser, deleteUser, refreshUsers }}>
+    <AuthContext.Provider value={{ user, users, loading, login, logout, createUser, updateUser, deleteUser, refreshUsers }}>
       {children}
     </AuthContext.Provider>
   );

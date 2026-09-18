@@ -1,6 +1,8 @@
 import { openDB } from 'idb';
 import type { DBSchema } from 'idb';
 
+import type { SectorType } from '../utils/sectors';
+
 export interface Product {
   id: string;
   code: string; // 5 numbers
@@ -9,13 +11,14 @@ export interface Product {
   addedDate: string; // ISO string
   addedBy: string; // User who added it
   observations?: string;
-  status: 'vigente' | 'vence_hoy' | 'vence_manana' | 'vence_2_dias' | 'vence_3_dias' | 'vence_7_dias' | 'vencido' | 'descartado' | 'proximo';
+  status: 'vigente' | 'vence_hoy' | 'vence_manana' | 'vence_2_dias' | 'vence_3_dias' | 'vence_7_dias' | 'vence_10_dias' | 'vencido' | 'descartado' | 'proximo';
   isDiscarded: boolean;
   isChecked?: boolean; // Checklist verification status
   checkedAt?: string; // Timestamp when verified
   checkedBy?: string; // User who verified
   lastUpdated?: string;
   category?: 'cárnicos' | 'embutidos' | 'lácteos' | 'vegetales' | 'general';
+  sector?: SectorType | string;
   quantity: number;
   unit?: 'unidades' | 'kg';
   weight?: number;
@@ -35,6 +38,7 @@ export interface AuditLog {
 export interface User {
   username: string;
   role: 'admin' | 'empleado';
+  sector?: SectorType | string;
   passwordHash: string; // plain password for local simplicity
   isDeleted?: boolean;
   lastUpdated?: string;

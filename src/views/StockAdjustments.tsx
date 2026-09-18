@@ -114,6 +114,7 @@ export const StockAdjustments: React.FC = () => {
       await saveProduct({
         id: selectedProduct.id,
         code: selectedProduct.code,
+        sector: selectedProduct.sector,
         category: selectedProduct.category || 'general',
         location: selectedProduct.location,
         expiryDate: selectedProduct.expiryDate,

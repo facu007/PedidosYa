@@ -128,12 +128,19 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, 
             </div>
             <div className="overflow-hidden flex-1">
               <p className="font-extrabold text-sm text-slate-850 dark:text-white truncate">{user.username}</p>
-              <span className={`inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider mt-0.5 ${user.role === 'admin'
-                  ? 'bg-amber-500 text-white shadow-xs'
-                  : 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400'
-                }`}>
-                {user.role === 'admin' ? '👑 Admin' : '👤 Empleado'}
-              </span>
+              <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                <span className={`inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider ${user.role === 'admin'
+                    ? 'bg-amber-500 text-white shadow-xs'
+                    : 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400'
+                  }`}>
+                  {user.role === 'admin' ? '👑 Admin' : '👤 Empleado'}
+                </span>
+                {user.sector && (
+                  <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 capitalize">
+                    {user.sector}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -233,14 +240,21 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, 
           </svg>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {user && (
-            <span className={`text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider ${user.role === 'admin'
-                ? 'bg-amber-500 text-white shadow-xs'
-                : 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400'
-              }`}>
-              {user.role === 'admin' ? '👑 Admin' : '👤 Empleado'}
-            </span>
+            <div className="flex items-center gap-1">
+              <span className={`text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider ${user.role === 'admin'
+                  ? 'bg-amber-500 text-white shadow-xs'
+                  : 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400'
+                }`}>
+                {user.role === 'admin' ? '👑 Admin' : '👤 Empleado'}
+              </span>
+              {user.sector && (
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 capitalize">
+                  {user.sector}
+                </span>
+              )}
+            </div>
           )}
 
           {/* Quick sync button */}

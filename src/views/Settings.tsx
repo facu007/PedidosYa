@@ -5,6 +5,7 @@ import { syncService } from '../services/syncService';
 import { useAudio } from '../hooks/useAudio';
 import { useNotifications } from '../hooks/useNotifications';
 import { dbService } from '../services/db';
+import { SECTORS, getSectorConfig, formatSectorLabel } from '../utils/sectors';
 import { 
   Settings as SettingsIcon, 
   Volume2, 
@@ -22,11 +23,12 @@ import {
   Trash2,
   Eye,
   EyeOff,
-  Bell
+  Bell,
+  Layers
 } from 'lucide-react';
 
 export const Settings: React.FC = () => {
-  const { user: currentUser, users, createUser, deleteUser } = useAuth();
+  const { user: currentUser, users, createUser, updateUser, deleteUser } = useAuth();
   const { config, saveConfig, auditLogs, products, refreshData } = useApp();
   const { permission, requestPermission, sendLocalNotification } = useNotifications();
   const { playSuccess, playError } = useAudio();
@@ -56,6 +58,7 @@ export const Settings: React.FC = () => {
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newRole, setNewRole] = useState<'admin' | 'empleado'>('empleado');
+  const [newSector, setNewSector] = useState<string>('snack');
   const [userError, setUserError] = useState<string | null>(null);
   const [userSuccess, setUserSuccess] = useState<string | null>(null);
   const [showAddUserPassword, setShowAddUserPassword] = useState(false);
@@ -73,9 +76,10 @@ export const Settings: React.FC = () => {
       username: newUsername.trim(),
       passwordHash: newPassword.trim(),
       role: newRole,
+      sector: newSector,
     });
     if (res.success) {
-      setUserSuccess(`Usuario "${newUsername}" creado con éxito.`);
+      setUserSuccess(`Usuario "${newUsername}" creado con éxito con sector ${formatSectorLabel(newSector)}.`);
       setNewUsername('');
       setNewPassword('');
       playSuccess();
@@ -794,30 +798,70 @@ export const Settings: React.FC = () => {
                 {/* User List */}
                 <div className="space-y-3">
                   <h4 className="text-xs font-bold text-black dark:text-slate-400 uppercase tracking-wider">Usuarios Registrados</h4>
-                  <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
-                    {users.map((u) => (
-                      <div key={u.username} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-750 rounded-xl border border-slate-200 dark:border-slate-700">
-                        <div>
-                          <p className="font-bold text-sm text-black dark:text-white">{u.username}</p>
-                          <span className={`text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded ${
-                            u.role === 'admin' 
-                              ? 'bg-red-50 text-[#FF1744] dark:bg-red-500/10 dark:text-red-400' 
-                              : 'bg-slate-100 text-black dark:bg-slate-700 dark:text-slate-300'
-                          }`}>
-                            {u.role}
-                          </span>
+                  <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                    {users.map((u) => {
+                      const sectorConfig = getSectorConfig(u.sector);
+                      return (
+                        <div key={u.username} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-slate-50 dark:bg-slate-750 rounded-xl border border-slate-200 dark:border-slate-700 gap-2">
+                          <div>
+                            <p className="font-bold text-sm text-black dark:text-white">{u.username}</p>
+                            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                              <span className={`text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded ${
+                                u.role === 'admin' 
+                                  ? 'bg-red-50 text-[#FF1744] dark:bg-red-500/10 dark:text-red-400' 
+                                  : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
+                              }`}>
+                                {u.role === 'admin' ? '👑 Admin' : '👤 Empleado'}
+                              </span>
+
+                              {u.sector && (
+                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                                  sectorConfig?.badgeBg || 'bg-slate-100 dark:bg-slate-700'
+                                } ${
+                                  sectorConfig?.badgeText || 'text-slate-700 dark:text-slate-300'
+                                } ${
+                                  sectorConfig?.border || 'border-slate-200 dark:border-slate-600'
+                                }`}>
+                                  {formatSectorLabel(u.sector)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 self-end sm:self-center">
+                            {/* Quick sector modifier for employees */}
+                            {u.role === 'empleado' && (
+                              <select
+                                value={u.sector || 'snack'}
+                                onChange={async (e) => {
+                                  const updatedSector = e.target.value;
+                                  await updateUser({ ...u, sector: updatedSector });
+                                  playSuccess();
+                                }}
+                                className="text-[10px] font-bold px-2 py-1 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-750 dark:text-slate-200 cursor-pointer"
+                                title="Cambiar sector asignado"
+                              >
+                                {SECTORS.map((sec) => (
+                                  <option key={sec.id} value={sec.id}>
+                                    {sec.icon} {sec.label}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+
+                            {u.username !== currentUser?.username && u.username !== 'gfacu7@gmail.com' && (
+                              <button
+                                onClick={() => handleDeleteUser(u.username)}
+                                className="p-2 text-black hover:text-[#FF1744] hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all cursor-pointer"
+                                title="Eliminar usuario"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        {u.username !== currentUser?.username && u.username !== 'gfacu7@gmail.com' && (
-                          <button
-                            onClick={() => handleDeleteUser(u.username)}
-                            className="p-2 text-black hover:text-[#FF1744] hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all"
-                            title="Eliminar usuario"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -865,11 +909,34 @@ export const Settings: React.FC = () => {
                       <select
                         value={newRole}
                         onChange={(e) => setNewRole(e.target.value as 'admin' | 'empleado')}
-                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-black dark:text-white font-semibold rounded-lg"
+                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-black dark:text-white font-semibold rounded-lg cursor-pointer"
                       >
-                        <option value="empleado">Empleado</option>
-                        <option value="admin">Administrador</option>
+                        <option value="empleado">Empleado (Operativo)</option>
+                        <option value="admin">Administrador (Acceso total)</option>
                       </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-[#000000] dark:text-slate-400 uppercase mb-1 flex items-center gap-1">
+                        <Layers className="w-3 h-3 text-slate-400" />
+                        <span>Sector Asignado</span>
+                      </label>
+                      <select
+                        value={newSector}
+                        onChange={(e) => setNewSector(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-black dark:text-white font-semibold rounded-lg cursor-pointer"
+                      >
+                        {SECTORS.map((sec) => (
+                          <option key={sec.id} value={sec.id}>
+                            {sec.icon} {sec.label}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-[10px] text-slate-400 mt-0.5">
+                        {newRole === 'empleado' 
+                          ? 'El empleado solo verá los vencimientos de este sector.' 
+                          : 'Sector predeterminado para el perfil.'}
+                      </p>
                     </div>
                   </div>
 

@@ -13,7 +13,7 @@ import { RefreshCw } from 'lucide-react';
 
 export const App: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
-  const { loading: appLoading } = useApp();
+  const { loading: appLoading, products } = useApp();
   const [currentView, setView] = useState('dashboard');
   const [openAddModal, setOpenAddModal] = useState(false);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
@@ -28,8 +28,8 @@ export const App: React.FC = () => {
     setEditingProductId(null);
   };
 
-  // 1. Loading States
-  if (authLoading || appLoading) {
+  // 1. Loading States (only block during initial cold start)
+  if (authLoading || (appLoading && products.length === 0)) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 transition-colors duration-200">
         <div className="text-center">

@@ -50,6 +50,7 @@ export const exportProductsToPDF = (products: Product[], locationFilterName?: st
 
   const tableRows = activeProducts.map((p) => [
     p.code,
+    (p.sector || 'snack').toUpperCase(),
     p.location,
     new Date(p.expiryDate + 'T00:00:00').toLocaleDateString(),
     mapStatusToText(p.status),
@@ -59,7 +60,7 @@ export const exportProductsToPDF = (products: Product[], locationFilterName?: st
   // Generate Table
   autoTable(doc, {
     startY: 56,
-    head: [['Código de Barras', 'Ubicación', 'Vencimiento', 'Estado', 'Observaciones']],
+    head: [['Código de Barras', 'Sector', 'Ubicación', 'Vencimiento', 'Estado', 'Observaciones']],
     body: tableRows,
     headStyles: {
       fillColor: [255, 23, 68], // Red #FF1744
@@ -102,6 +103,7 @@ const mapStatusToText = (status: string): string => {
     case 'vence_2_dias': return 'Vence en 2 Días';
     case 'vence_3_dias': return 'Vence en 3 Días';
     case 'vence_7_dias': return 'Vence en 7 Días (Cargar)';
+    case 'vence_10_dias': return 'Vence en 10 Días (Aviso)';
     case 'proximo': return 'Próximo a Vencer';
     case 'vencido': return 'VENCIDO';
     case 'descartado': return 'Descartado';

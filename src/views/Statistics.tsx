@@ -21,8 +21,10 @@ import {
   Calendar,
   AlertCircle,
   DollarSign,
-  Award
+  Award,
+  Layers
 } from 'lucide-react';
+import { formatSectorLabel } from '../utils/sectors';
 import { format, subDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -133,17 +135,30 @@ export const Statistics: React.FC = () => {
   const activeStockValue = activeProducts.reduce((sum, p) => sum + ((p.costPrice ?? 0) * (p.quantity ?? 1)), 0);
 
   const categoryWaste: Record<string, { count: number; totalCost: number }> = {};
+  const sectorWaste: Record<string, { count: number; totalCost: number }> = {};
+
   discardedOrExpired.forEach((p) => {
     const cat = p.category || 'general';
+    const sec = p.sector || 'snack';
     if (!categoryWaste[cat]) {
       categoryWaste[cat] = { count: 0, totalCost: 0 };
     }
     categoryWaste[cat].count += p.quantity ?? 1;
     categoryWaste[cat].totalCost += (p.costPrice ?? 0) * (p.quantity ?? 1);
+
+    if (!sectorWaste[sec]) {
+      sectorWaste[sec] = { count: 0, totalCost: 0 };
+    }
+    sectorWaste[sec].count += p.quantity ?? 1;
+    sectorWaste[sec].totalCost += (p.costPrice ?? 0) * (p.quantity ?? 1);
   });
 
   const categoryWasteRanking = Object.keys(categoryWaste)
     .map(cat => ({ category: cat, ...categoryWaste[cat] }))
+    .sort((a, b) => b.totalCost - a.totalCost || b.count - a.count);
+
+  const sectorWasteRanking = Object.keys(sectorWaste)
+    .map(sec => ({ sector: sec, ...sectorWaste[sec] }))
     .sort((a, b) => b.totalCost - a.totalCost || b.count - a.count);
 
   return (
@@ -332,6 +347,37 @@ export const Statistics: React.FC = () => {
               </div>
             ) : (
               <p className="text-xs text-slate-400 italic">No hay registros de descartes o mermas con costo cargado.</p>
+            )}
+          </div>
+
+          {/* 6. Waste Ranking by Sector */}
+          <div className="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm md:col-span-2">
+            <div className="flex items-center gap-2 mb-4">
+              <Layers className="w-5 h-5 text-indigo-500" />
+              <h3 className="font-extrabold text-sm text-slate-800 dark:text-white">Mermas y Pérdidas por Sector</h3>
+            </div>
+
+            {sectorWasteRanking.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                {sectorWasteRanking.map((item) => (
+                  <div key={item.sector} className="p-4 bg-slate-50 dark:bg-slate-750 rounded-2xl border border-slate-100 dark:border-slate-700 flex flex-col justify-between gap-2">
+                    <div>
+                      <p className="font-extrabold text-sm text-slate-850 dark:text-white capitalize">
+                        {formatSectorLabel(item.sector)}
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-0.5">
+                        {item.count} un. vencidas / descartadas
+                      </p>
+                    </div>
+                    <div className="pt-2 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                      <span className="text-[10px] text-slate-400 font-bold uppercase">Pérdida</span>
+                      <p className="text-sm font-black text-red-500">${item.totalCost.toFixed(2)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400 italic">No hay registros de descartes o mermas por sector.</p>
             )}
           </div>
 

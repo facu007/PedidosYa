@@ -23,6 +23,7 @@ import {
   Printer
 } from 'lucide-react';
 import { printProductLabel } from '../utils/labelPrinter';
+import { getSectorConfig, formatSectorLabel } from '../utils/sectors';
 
 interface HistoryProps {
   onEditProduct: (id: string) => void;
@@ -164,6 +165,8 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
         return <span className="text-orange-500/80 font-bold text-xs">🟠 En 3 días</span>;
       case 'vence_7_dias':
         return <span className="text-blue-600 dark:text-blue-400 font-extrabold text-xs">📅 Vence en 7 días (Cargar)</span>;
+      case 'vence_10_dias':
+        return <span className="text-purple-600 dark:text-purple-400 font-extrabold text-xs">📅 Vence en 10 días (Aviso)</span>;
       case 'proximo':
         return <span className="text-orange-550 font-extrabold text-xs animate-pulse">🟠 Próximo a Vencer</span>;
       case 'vigente':
@@ -173,6 +176,22 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
       default:
         return status;
     }
+  };
+
+  const getSectorBadge = (sector?: string) => {
+    if (!sector) return null;
+    const config = getSectorConfig(sector);
+    return (
+      <span className={`px-2 py-0.5 rounded text-xs font-extrabold border ${
+        config?.badgeBg || 'bg-slate-100 dark:bg-slate-700'
+      } ${
+        config?.badgeText || 'text-slate-700 dark:text-slate-300'
+      } ${
+        config?.border || 'border-slate-200 dark:border-slate-600'
+      }`}>
+        {formatSectorLabel(sector)}
+      </span>
+    );
   };
 
   const getCategoryBadge = (category?: string) => {
@@ -396,6 +415,7 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
                         <ArrowUpDown className="w-3.5 h-3.5" />
                       </div>
                     </th>
+                    <th className="p-4">Sector</th>
                     <th className="p-4">Categoría</th>
                     <th className="p-4">Cant. / Peso</th>
                     <th className="p-4">Ubicación</th>
@@ -443,6 +463,9 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
                           </button>
                         </td>
                         <td className="p-4 font-extrabold text-base">#{p.code}</td>
+                        <td className="p-4">
+                          {getSectorBadge(p.sector)}
+                        </td>
                         <td className="p-4">
                           {getCategoryBadge(p.category)}
                         </td>
@@ -546,6 +569,7 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
                           )}
                         </button>
                         <span className="font-extrabold text-base text-slate-850 dark:text-white">#{p.code}</span>
+                        {getSectorBadge(p.sector)}
                         {getCategoryBadge(p.category)}
                       </div>
                       <span className="bg-slate-100 dark:bg-slate-750 px-2.5 py-0.5 rounded text-xs font-bold text-slate-650 dark:text-slate-350">

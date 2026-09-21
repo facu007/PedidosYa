@@ -12,6 +12,7 @@ export interface AppContextType {
   deleteProduct: (id: string) => Promise<void>;
   saveConfig: (newConfig: AppConfig) => Promise<void>;
   importFromExcel: (parsedProducts: Partial<Product>[]) => Promise<{ imported: number; errors: number }>;
+  reintegrateFromExcel: (parsedProducts: Partial<Product>[], mode?: 'merge' | 'replace') => Promise<{ imported: number; errors: number }>;
   toggleProductCheck: (productId: string, forceStatus?: boolean) => Promise<void>;
   markAllChecks: (verified: boolean) => Promise<void>;
   searchQuery: string;
@@ -31,6 +32,7 @@ export interface AppContextType {
   getDashboardStats: () => {
     vigentes: number;
     venceHoy: number;
+    venceManana: number;
     vence3Dias: number;
     vence7Dias: number;
     vence10Dias: number;

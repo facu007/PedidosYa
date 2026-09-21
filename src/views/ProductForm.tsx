@@ -14,7 +14,6 @@ import {
   Camera, 
   Save, 
   AlertCircle, 
-  CheckCircle,
   FileText, 
   MapPin, 
   CalendarDays,
@@ -78,6 +77,13 @@ const productSchema = z.object({
 
 type ProductFormValues = z.infer<typeof productSchema>;
 
+interface ExtraBatch {
+  id: string;
+  expiryDate: string;
+  quantity: number;
+  location: string;
+}
+
 export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, productIdToEdit }) => {
   const { user } = useAuth();
   const { saveProduct, products, selectedSector } = useApp();
@@ -85,6 +91,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
   const [scannerMode, setScannerMode] = useState<'code' | 'location' | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeBatchIdToEdit, setActiveBatchIdToEdit] = useState<string | null>(productIdToEdit || null);
+  const [extraBatches, setExtraBatches] = useState<ExtraBatch[]>([]);
 
   // Compute initial sector default
   const defaultSector = (user?.role === 'empleado' && user?.sector)
@@ -118,6 +126,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
   const selectedCategory = watch('category');
   const selectedUnit = watch('unit');
   const codeValue = watch('code');
+  const currentLocation = watch('location');
   const currentQuantity = watch('quantity') ?? 1;
 
   const handleStepQuantity = (delta: number) => {
@@ -125,12 +134,16 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
     setValue('quantity', nextVal);
   };
 
-  // Find duplicate or existing product by code
-  const duplicateProduct = products.find(
-    (p) => p.code && codeValue && p.code.trim() === codeValue.trim() && !p.isDiscarded && p.id !== productIdToEdit
-  );
+  // Find all active batches for the current product code
+  const existingBatches = React.useMemo(() => {
+    if (!codeValue || !codeValue.trim()) return [];
+    return products.filter(
+      (p) => p.code && p.code.trim() === codeValue.trim() && !p.isDiscarded
+    );
+  }, [products, codeValue]);
 
   const loadProductValues = useCallback((prod: Product) => {
+    setActiveBatchIdToEdit(prod.id);
     setValue('code', prod.code);
     setValue('sector', prod.sector || defaultSector);
     setValue('category', prod.category || 'general');
@@ -146,25 +159,55 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
     setValue('costPrice', prod.costPrice);
   }, [setValue, defaultSector]);
 
+  const handleStartNewBatch = () => {
+    setActiveBatchIdToEdit(null);
+    setValue('expiryDate', '');
+    setValue('quantity', 1);
+  };
+
+  const handleAddExtraBatch = () => {
+    setExtraBatches((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        expiryDate: '',
+        quantity: 1,
+        location: currentLocation || 'Heladera 1',
+      },
+    ]);
+  };
+
+  const handleRemoveExtraBatch = (id: string) => {
+    setExtraBatches((prev) => prev.filter((b) => b.id !== id));
+  };
+
+  const handleUpdateExtraBatch = (id: string, field: 'expiryDate' | 'quantity' | 'location', value: any) => {
+    setExtraBatches((prev) =>
+      prev.map((b) => (b.id === id ? { ...b, [field]: value } : b))
+    );
+  };
+
   // Auto switch unit to 'kg' when selecting 'cárnicos' if creating a new product
   useEffect(() => {
-    if (!productIdToEdit) {
+    if (!activeBatchIdToEdit) {
       if (selectedCategory === 'cárnicos') {
         setValue('unit', 'kg');
       }
     }
-  }, [selectedCategory, productIdToEdit, setValue]);
+  }, [selectedCategory, activeBatchIdToEdit, setValue]);
 
   // Load product to edit if productIdToEdit changes or reset when modal opens
   useEffect(() => {
     if (!isOpen) return;
 
+    setExtraBatches([]);
     if (productIdToEdit) {
       const prod = products.find((p) => p.id === productIdToEdit);
       if (prod) {
         loadProductValues(prod);
       }
     } else {
+      setActiveBatchIdToEdit(null);
       reset({
         code: '',
         sector: defaultSector,
@@ -195,8 +238,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
       const addedDateObj = values.addedDate ? new Date(values.addedDate.includes('T') ? values.addedDate : values.addedDate + 'T12:00:00') : new Date();
       const addedDateISO = isNaN(addedDateObj.getTime()) ? new Date().toISOString() : addedDateObj.toISOString();
 
-      const targetId = productIdToEdit || (duplicateProduct ? duplicateProduct.id : crypto.randomUUID());
+      const targetId = activeBatchIdToEdit || crypto.randomUUID();
 
+      // Save primary batch/product
       await saveProduct({
         id: targetId,
         code: values.code.trim(),
@@ -211,6 +255,27 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
         weight: weightVal,
         costPrice: costVal,
       });
+
+      // Save additional batches if user added extra dates in this submission
+      for (const extra of extraBatches) {
+        if (extra.expiryDate && extra.expiryDate.trim()) {
+          await saveProduct({
+            id: crypto.randomUUID(),
+            code: values.code.trim(),
+            sector: values.sector,
+            category: values.category,
+            location: extra.location || values.location,
+            expiryDate: extra.expiryDate,
+            addedDate: addedDateISO,
+            observations: values.observations ? `${values.observations} (Lote adicional)` : 'Lote adicional',
+            quantity: extra.quantity > 0 ? extra.quantity : 1,
+            unit: values.unit,
+            weight: undefined,
+            costPrice: costVal,
+          });
+        }
+      }
+
       playSuccess();
       setShowConfirmation(true);
     } catch (err) {
@@ -227,7 +292,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
       setValue('code', cleanCode);
       const existing = products.find(p => p.code && p.code.trim() === cleanCode && !p.isDiscarded);
       if (existing) {
-        loadProductValues(existing);
+        // Auto fill general metadata (sector, category, etc.) but allow choosing batch
+        setValue('sector', existing.sector || defaultSector);
+        setValue('category', existing.category || 'general');
       }
     } else if (scannerMode === 'location') {
       setValue('location', scannedCode.trim());
@@ -245,7 +312,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
     setValue('code', value, { shouldValidate: errors.code !== undefined });
   };
 
-  const isEditingExisting = Boolean(productIdToEdit || duplicateProduct);
+  const isEditingExisting = Boolean(activeBatchIdToEdit);
 
   return (
     <>
@@ -307,39 +374,73 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
                 <p className="text-xs text-red-500 font-semibold mt-1.5">{errors.code.message}</p>
               )}
 
-              {/* Duplicate code alert with fast load, quick +1 & edit button */}
-              {duplicateProduct && (
-                <div className="p-3.5 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-300 dark:border-emerald-500/30 rounded-xl text-xs space-y-2 mt-2">
-                  <div className="flex items-center justify-between font-extrabold text-emerald-800 dark:text-emerald-300 flex-wrap gap-2">
+              {/* Existing Batches / Dates Alert & Selector */}
+              {existingBatches.length > 0 && (
+                <div className="p-3.5 bg-slate-50 dark:bg-slate-750/70 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs space-y-2.5 mt-2">
+                  <div className="flex items-center justify-between font-extrabold text-slate-800 dark:text-white flex-wrap gap-2">
                     <div className="flex items-center gap-1.5">
-                      <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
-                      <span>¡Producto ya existe en inventario!</span>
+                      <Layers className="w-4 h-4 text-[#FF1744] shrink-0" />
+                      <span>Lotes / Fechas registradas para este código ({existingBatches.length}):</span>
                     </div>
-                    <div className="flex items-center gap-1.5">
+                    {activeBatchIdToEdit ? (
                       <button
                         type="button"
-                        onClick={() => {
-                          loadProductValues(duplicateProduct);
-                          setValue('quantity', (duplicateProduct.quantity ?? 1) + 1);
-                        }}
+                        onClick={handleStartNewBatch}
                         className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer shadow-sm flex items-center gap-1"
-                        title="Sumar 1 unidad al producto existente"
                       >
                         <Plus className="w-3 h-3" />
-                        <span>+1 Unidad</span>
+                        <span>+ Nueva Fecha / Lote</span>
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => loadProductValues(duplicateProduct)}
-                        className="px-2.5 py-1 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 rounded-lg text-[10px] font-bold transition-all cursor-pointer"
-                      >
-                        Cargar datos
-                      </button>
-                    </div>
+                    ) : (
+                      <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded">
+                        Modo: Nuevo Lote
+                      </span>
+                    )}
                   </div>
-                  <p className="text-slate-600 dark:text-slate-350 text-[11px] leading-relaxed">
-                    Registrado en <span className="font-bold text-slate-800 dark:text-white">{duplicateProduct.location}</span> con fecha <span className="font-bold text-slate-800 dark:text-white">{new Date(duplicateProduct.expiryDate + 'T00:00:00').toLocaleDateString()}</span> ({duplicateProduct.quantity ?? 1} un.). Puedes modificar la fecha y la cantidad a continuación.
-                  </p>
+
+                  <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                    {existingBatches.map((batch) => {
+                      const isSelected = activeBatchIdToEdit === batch.id;
+                      return (
+                        <div
+                          key={batch.id}
+                          className={`p-2 rounded-xl flex items-center justify-between gap-2 text-[11px] transition-all border ${
+                            isSelected
+                              ? 'bg-red-50 dark:bg-red-500/10 border-[#FF1744]/40 text-slate-900 dark:text-white font-bold ring-1 ring-[#FF1744]/30'
+                              : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-extrabold text-[#FF1744]">
+                              📅 {new Date(batch.expiryDate + 'T00:00:00').toLocaleDateString()}
+                            </span>
+                            <span className="text-slate-500 dark:text-slate-400">
+                              📦 {batch.quantity ?? 1} {batch.unit || 'un.'}
+                            </span>
+                            <span className="text-slate-400 text-[10px]">
+                              📍 {batch.location}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-1">
+                            {isSelected ? (
+                              <span className="text-[10px] text-[#FF1744] font-black px-1.5 py-0.5 bg-red-100 dark:bg-red-500/20 rounded">
+                                Editando
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => loadProductValues(batch)}
+                                className="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded text-[10px] font-bold transition-all cursor-pointer"
+                              >
+                                Editar
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
@@ -548,7 +649,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
               )}
             </div>
 
-            {/* Dates Grid (Loading Date & Expiry Date side-by-side) */}
+            {/* Dates Grid (Loading Date & Primary Expiry Date) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Loading Date */}
               <div>
@@ -571,8 +672,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
               {/* Expiry Date */}
               <div>
                 <label className="block text-xs font-bold text-slate-500 dark:text-slate-450 uppercase tracking-wider mb-2 flex items-center gap-1">
-                  <CalendarDays className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Fecha de Vencimiento</span>
+                  <CalendarDays className="w-3.5 h-3.5 text-[#FF1744]" />
+                  <span>Fecha de Vencimiento {extraBatches.length > 0 && '(Lote 1)'}</span>
                 </label>
                 <input
                   type="date"
@@ -585,6 +686,91 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
                   <p className="text-xs text-red-500 font-semibold mt-1.5">{errors.expiryDate.message}</p>
                 )}
               </div>
+            </div>
+
+            {/* Extra Dates / Multi-Batch Section */}
+            <div className="space-y-3 pt-1">
+              {extraBatches.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-[#FF1744] uppercase tracking-wider flex items-center gap-1">
+                      <CalendarDays className="w-3.5 h-3.5" />
+                      <span>Otras Fechas de Vencimiento para este Producto ({extraBatches.length})</span>
+                    </span>
+                  </div>
+
+                  {extraBatches.map((batch, index) => (
+                    <div
+                      key={batch.id}
+                      className="p-3.5 rounded-2xl bg-amber-50/60 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 space-y-2 animate-fade-in"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-black text-amber-800 dark:text-amber-300 uppercase">
+                          Lote Adicional #{index + 2}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveExtraBatch(batch.id)}
+                          className="p-1 text-slate-400 hover:text-red-500 transition-all cursor-pointer rounded"
+                          title="Eliminar este lote adicional"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-450 uppercase mb-1">
+                            Vencimiento
+                          </label>
+                          <input
+                            type="date"
+                            value={batch.expiryDate}
+                            onChange={(e) => handleUpdateExtraBatch(batch.id, 'expiryDate', e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-black dark:text-white font-semibold text-xs"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-450 uppercase mb-1">
+                            Cantidad (un.)
+                          </label>
+                          <input
+                            type="number"
+                            min={1}
+                            value={batch.quantity}
+                            onChange={(e) => handleUpdateExtraBatch(batch.id, 'quantity', parseInt(e.target.value, 10) || 1)}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-black dark:text-white font-semibold text-xs text-center"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-450 uppercase mb-1">
+                            Ubicación
+                          </label>
+                          <input
+                            type="text"
+                            list="locations-list"
+                            value={batch.location}
+                            placeholder="Ubicación"
+                            onChange={(e) => handleUpdateExtraBatch(batch.id, 'location', e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-black dark:text-white font-semibold text-xs"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={handleAddExtraBatch}
+                className="w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-750 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-extrabold transition-all border border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5 text-[#FF1744]" />
+                <span>+ Agregar otra fecha de vencimiento a este producto</span>
+              </button>
             </div>
 
             {/* Cost field */}
@@ -640,7 +826,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
                 ) : (
                   <>
                     <Save className="w-4 h-4" />
-                    <span>{isEditingExisting ? 'Guardar Cambios' : 'Registrar'}</span>
+                    <span>
+                      {isEditingExisting 
+                        ? 'Guardar Cambios del Lote' 
+                        : (existingBatches.length > 0 ? 'Registrar como Nuevo Lote' : 'Registrar Producto')}
+                    </span>
                   </>
                 )}
               </button>
@@ -665,7 +855,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
       <ConfirmationAnimation
         isVisible={showConfirmation}
         onFinished={handleFinishedConfirmation}
-        message={isEditingExisting ? "¡Producto Actualizado!" : "¡Producto Registrado!"}
+        message={isEditingExisting ? "¡Lote Actualizado!" : "¡Producto / Lotes Registrados!"}
       />
     </>
   );

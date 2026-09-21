@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { dbService } from '../services/db';
+import { dbService, initDB } from '../services/db';
 import type { Product, AppConfig, AuditLog } from '../services/db';
 import { useAuth } from '../hooks/useAuth';
 import { differenceInCalendarDays, startOfDay } from 'date-fns';
@@ -21,8 +21,8 @@ const calculateProductStatus = (
   if (diff === 1) return 'vence_manana';
   if (diff === 2) return 'vence_2_dias';
   if (diff === 3) return 'vence_3_dias';
-  if (diff === 7) return 'vence_7_dias';
-  if (diff === 10) return 'vence_10_dias';
+  if (diff <= 7) return 'vence_7_dias';
+  if (diff <= 10) return 'vence_10_dias';
 
   // Determine alert threshold based on category
   let alertDays = config?.alertDays ?? 3;
@@ -91,6 +91,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       desayuno: 0,
       almacen: 0,
       galletas: 0,
+      heladeras: 0,
+      freezers: 0,
     };
     for (const p of active) {
       const s = (p.sector || '').toLowerCase().trim();
@@ -285,71 +287,92 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const importFromExcel = async (parsedProducts: Partial<Product>[]): Promise<{ imported: number; errors: number }> => {
+    return reintegrateFromExcel(parsedProducts, 'merge');
+  };
+
+  const reintegrateFromExcel = async (parsedProducts: Partial<Product>[], mode: 'merge' | 'replace' = 'merge'): Promise<{ imported: number; errors: number }> => {
     const operator = user?.username || 'sistema';
     let imported = 0;
     let errors = 0;
 
+    const db = await initDB();
+    const tx = db.transaction(['products', 'audit_logs'], 'readwrite');
+    const productStore = tx.objectStore('products');
+    const auditStore = tx.objectStore('audit_logs');
+
+    if (mode === 'replace') {
+      await productStore.clear();
+    }
+
+    const now = new Date().toISOString();
+
     for (const p of parsedProducts) {
       if (p.code && p.location && p.expiryDate) {
+        const id = p.id || crypto.randomUUID();
         const fullProduct: Product = {
-          id: p.id || crypto.randomUUID(),
+          id,
           code: p.code,
-          category: p.category,
+          category: p.category || 'general',
           sector: p.sector || (user?.role === 'empleado' && user?.sector ? user.sector : (selectedSector !== 'todos' ? selectedSector : 'snack')),
           location: p.location,
           expiryDate: p.expiryDate,
           quantity: p.quantity ?? 1,
           unit: p.unit || (p.category === 'cárnicos' || p.weight !== undefined ? 'kg' : 'unidades'),
           weight: p.weight,
+          costPrice: p.costPrice,
           observations: p.observations || '',
-          addedBy: operator,
-          addedDate: new Date().toISOString(),
+          addedBy: p.addedBy || operator,
+          addedDate: p.addedDate || now,
           status: calculateProductStatus(p.expiryDate, p.category, config),
           isDiscarded: false,
-          isChecked: true,
-          checkedAt: new Date().toISOString(),
+          isChecked: p.isChecked !== undefined ? p.isChecked : true,
+          checkedAt: now,
           checkedBy: operator,
-          lastUpdated: new Date().toISOString(),
+          lastUpdated: now,
         };
-        await dbService.saveProduct(fullProduct, operator);
+        await productStore.put(fullProduct);
         imported++;
       } else {
         errors++;
       }
     }
 
-    if (imported > 0) {
-      await refreshData(false);
-      triggerSync();
-    }
+    const auditLog: AuditLog = {
+      id: crypto.randomUUID(),
+      productId: 'excel-reintegrate',
+      productCode: 'EXCEL',
+      action: 'create',
+      user: operator,
+      timestamp: now,
+      details: `Reintegración masiva desde Excel: ${imported} productos procesados (modo: ${mode})`,
+    };
+    await auditStore.put(auditLog);
+    await tx.done;
+
+    await refreshData(false);
+    triggerSync().catch((err) => console.warn('Background sync warning:', err));
 
     return { imported, errors };
   };
 
   // Get Dashboard statistics scoped to the effective sector
+  // Conteo acumulativo de días hacia abajo hasta estar vencido:
   const getDashboardStats = () => {
     const today = startOfDay(new Date());
     const active = scopedProducts.filter(p => !p.isDiscarded);
-    const vigentes = active.filter(p => p.status === 'vigente').length;
-    const venceHoy = active.filter(p => p.status === 'vence_hoy' || differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) === 0).length;
-    // Orange alert: vencen en 3 días o menos (mañana, 2 días, 3 días)
-    const vence3Dias = active.filter(p => {
-      const diff = differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today);
-      return diff >= 1 && diff <= 3;
-    }).length;
-    const vence7Dias = active.filter(p => {
-      const diff = differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today);
-      return diff === 7 || p.status === 'vence_7_dias';
-    }).length;
-    const vence10Dias = active.filter(p => {
-      const diff = differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today);
-      return diff === 10 || p.status === 'vence_10_dias';
-    }).length;
-    const vencidos = active.filter(p => p.status === 'vencido' || differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) < 0).length;
+    
+    const vencidos = active.filter(p => differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) < 0).length;
+    const venceHoy = active.filter(p => differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) <= 0).length;
+    const venceManana = active.filter(p => differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) <= 1).length;
+    const vence3Dias = active.filter(p => differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) <= 3).length;
+    const vence7Dias = active.filter(p => differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) <= 7).length;
+    const vence10Dias = active.filter(p => differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) <= 10).length;
+    const vigentes = active.filter(p => differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) > 10).length;
     
     return {
       vigentes,
       venceHoy,
+      venceManana,
       vence3Dias,
       vence7Dias,
       vence10Dias,
@@ -359,14 +382,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Get Alerts for Welcome Notification Card scoped to the effective sector
+  // Referencias acumulativas hacia abajo hasta estar vencido
   const getAlerts = () => {
     const today = startOfDay(new Date());
     const active = scopedProducts.filter(p => !p.isDiscarded);
-    const vencidosCount = active.filter(p => p.status === 'vencido' || differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) < 0).length;
-    const hoyCount = active.filter(p => p.status === 'vence_hoy' || differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) === 0).length;
-    const mananaCount = active.filter(p => p.status === 'vence_manana' || differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) === 1).length;
-    const sieteDiasCount = active.filter(p => p.status === 'vence_7_dias' || differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) === 7).length;
-    const diezDiasCount = active.filter(p => p.status === 'vence_10_dias' || differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) === 10).length;
+    const vencidosCount = active.filter(p => differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) < 0).length;
+    const hoyCount = active.filter(p => differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) <= 0).length;
+    const mananaCount = active.filter(p => differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) <= 1).length;
+    const sieteDiasCount = active.filter(p => differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) <= 7).length;
+    const diezDiasCount = active.filter(p => differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) <= 10).length;
 
     return {
       vencidosCount,
@@ -406,8 +430,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return false;
       }
       if (filterStatusType === 'proximos') {
-        // proximate means: vence hoy, mañana, en 2 días, en 3 días (everything except vigente, vencido, and descartado)
-        if (['vigente', 'vencido', 'descartado'].includes(p.status)) {
+        // proximate means: anything not strictly 'vigente' and not 'descartado'
+        if (['vigente', 'descartado'].includes(p.status)) {
           return false;
         }
       }
@@ -443,6 +467,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         markAllChecks,
         saveConfig,
         importFromExcel,
+        reintegrateFromExcel,
         
         searchQuery,
         setSearchQuery,

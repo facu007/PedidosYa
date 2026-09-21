@@ -1,4 +1,4 @@
-export type SectorType = 'snack' | 'kiosco' | 'desayuno' | 'almacen' | 'galletas';
+export type SectorType = 'snack' | 'kiosco' | 'desayuno' | 'almacen' | 'galletas' | 'heladeras' | 'freezers';
 
 export interface SectorConfig {
   id: SectorType;
@@ -55,6 +55,24 @@ export const SECTORS: SectorConfig[] = [
     badgeBg: 'bg-yellow-100 dark:bg-yellow-500/20',
     badgeText: 'text-yellow-800 dark:text-yellow-300',
     border: 'border-yellow-300 dark:border-yellow-700',
+  },
+  {
+    id: 'heladeras',
+    label: 'Heladeras',
+    icon: '🥛',
+    color: 'text-cyan-600 dark:text-cyan-400',
+    badgeBg: 'bg-cyan-100 dark:bg-cyan-500/20',
+    badgeText: 'text-cyan-800 dark:text-cyan-300',
+    border: 'border-cyan-300 dark:border-cyan-700',
+  },
+  {
+    id: 'freezers',
+    label: 'Freezers',
+    icon: '🧊',
+    color: 'text-blue-600 dark:text-blue-400',
+    badgeBg: 'bg-blue-100 dark:bg-blue-500/20',
+    badgeText: 'text-blue-800 dark:text-blue-300',
+    border: 'border-blue-300 dark:border-blue-700',
   },
 ];
 

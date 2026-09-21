@@ -65,11 +65,11 @@ export const useNotifications = () => {
   const checkAndNotifyUpcomingExpirations = useCallback((products: Product[]) => {
     const today = startOfDay(new Date());
     const active = products.filter(p => !p.isDiscarded);
-    const vencidos = active.filter(p => p.status === 'vencido' || differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) < 0);
-    const hoy = active.filter(p => p.status === 'vence_hoy' || differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) === 0);
-    const manana = active.filter(p => p.status === 'vence_manana' || differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) === 1);
-    const sieteDias = active.filter(p => p.status === 'vence_7_dias' || differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) === 7);
-    const diezDias = active.filter(p => p.status === 'vence_10_dias' || differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) === 10);
+    const vencidos = active.filter(p => differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) < 0);
+    const hoy = active.filter(p => differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) <= 0);
+    const manana = active.filter(p => differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) <= 1);
+    const sieteDias = active.filter(p => differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) <= 7);
+    const diezDias = active.filter(p => differenceInCalendarDays(startOfDay(new Date(p.expiryDate + 'T00:00:00')), today) <= 10);
 
     const currentCounts = `${vencidos.length}-${hoy.length}-${manana.length}-${sieteDias.length}-${diezDias.length}`;
     const lastNotifiedSession = sessionStorage.getItem('pya_last_notified_counts');
@@ -88,34 +88,22 @@ export const useNotifications = () => {
       notified = true;
     }
 
-    if (hoy.length > 0) {
-      sendLocalNotification(
-        '🟡 Atención: Control Diario',
-        `Hay ${hoy.length} producto${hoy.length > 1 ? 's' : ''} que vence${hoy.length > 1 ? 'n' : ''} hoy.`
-      );
-      notified = true;
-    }
-
     if (manana.length > 0) {
       sendLocalNotification(
-        '🟠 Aviso de Carga (1 día antes)',
-        `Hay ${manana.length} producto${manana.length > 1 ? 's' : ''} que vence${manana.length > 1 ? 'n' : ''} mañana. ¡Cargar y rotar producto!`
+        '🟠 Aviso de Carga (≤ 1 día)',
+        `Hay ${manana.length} producto${manana.length > 1 ? 's' : ''} que vence${manana.length > 1 ? 'n' : ''} en 1 día o menos. ¡Cargar y rotar producto!`
       );
       notified = true;
-    }
-
-    if (sieteDias.length > 0) {
+    } else if (sieteDias.length > 0) {
       sendLocalNotification(
-        '📅 Aviso Anticipado (7 días antes)',
-        `Hay ${sieteDias.length} producto${sieteDias.length > 1 ? 's' : ''} a 7 días de vencer. ¡Cargar producto al sistema!`
+        '📅 Aviso de Carga (≤ 7 días)',
+        `Hay ${sieteDias.length} producto${sieteDias.length > 1 ? 's' : ''} que vence${sieteDias.length > 1 ? 'n' : ''} en 7 días o menos. ¡Cargar producto al sistema!`
       );
       notified = true;
-    }
-
-    if (diezDias.length > 0) {
+    } else if (diezDias.length > 0) {
       sendLocalNotification(
-        '📅 Aviso Anticipado (10 días antes)',
-        `Hay ${diezDias.length} producto${diezDias.length > 1 ? 's' : ''} a 10 días de vencer. ¡Aviso de control de inventario!`
+        '📅 Aviso Anticipado (≤ 10 días)',
+        `Hay ${diezDias.length} producto${diezDias.length > 1 ? 's' : ''} que vence${diezDias.length > 1 ? 'n' : ''} en 10 días o menos. ¡Aviso de control de inventario!`
       );
       notified = true;
     }

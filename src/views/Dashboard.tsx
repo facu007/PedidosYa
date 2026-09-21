@@ -256,50 +256,44 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <AlertTriangle className="w-5 h-5 text-red-500" />
-                <h3 className="font-bold text-sm text-slate-800 dark:text-white">Alertas y Avisos de Carga</h3>
+                <h3 className="font-bold text-sm text-slate-800 dark:text-white">Alertas Acumulativas de Vencimiento</h3>
               </div>
               <div className="space-y-2">
                 {alerts.vencidosCount > 0 && (
                   <div className="flex items-center gap-2 text-xs font-semibold text-red-600 dark:text-red-400">
                     <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
-                    <span>⚠️ Hay {alerts.vencidosCount} {alerts.vencidosCount === 1 ? 'producto vencido' : 'productos vencidos'}.</span>
-                  </div>
-                )}
-                {alerts.hoyCount > 0 && (
-                  <div className="flex items-center gap-2 text-xs font-semibold text-yellow-600 dark:text-yellow-400">
-                    <span className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
-                    <span>⚠️ Hay {alerts.hoyCount} {alerts.hoyCount === 1 ? 'producto que vence' : 'productos que vencen'} hoy.</span>
+                    <span>🔴 {alerts.vencidosCount} {alerts.vencidosCount === 1 ? 'producto vencido' : 'productos vencidos'}.</span>
                   </div>
                 )}
                 {alerts.mananaCount > 0 && (
                   <div className="flex items-center gap-2 text-xs font-semibold text-orange-600 dark:text-orange-400">
                     <span className="w-2.5 h-2.5 rounded-full bg-orange-500 animate-pulse" />
-                    <span>🟠 Hay {alerts.mananaCount} {alerts.mananaCount === 1 ? 'producto a 1 día de vencer (¡Cargar hoy!)' : 'productos a 1 día de vencer (¡Cargar hoy!)'}.</span>
+                    <span>🟠 {alerts.mananaCount} {alerts.mananaCount === 1 ? 'producto vence en ≤ 1 día (¡Cargar hoy!)' : 'productos vencen en ≤ 1 día (¡Cargar hoy!)'}.</span>
                   </div>
                 )}
                 {alerts.sieteDiasCount > 0 && (
                   <div className="flex items-center gap-2 text-xs font-semibold text-blue-600 dark:text-blue-400">
                     <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-                    <span>📅 Hay {alerts.sieteDiasCount} {alerts.sieteDiasCount === 1 ? 'producto a 7 días de vencer (Aviso de carga)' : 'productos a 7 días de vencer (Aviso de carga)'}.</span>
+                    <span>📅 {alerts.sieteDiasCount} {alerts.sieteDiasCount === 1 ? 'producto vence en ≤ 7 días (Aviso de carga)' : 'productos vencen en ≤ 7 días (Aviso de carga)'}.</span>
                   </div>
                 )}
                 {alerts.diezDiasCount > 0 && (
                   <div className="flex items-center gap-2 text-xs font-semibold text-purple-600 dark:text-purple-400">
                     <span className="w-2.5 h-2.5 rounded-full bg-purple-500" />
-                    <span>📅 Hay {alerts.diezDiasCount} {alerts.diezDiasCount === 1 ? 'producto a 10 días de vencer (Aviso anticipado)' : 'productos a 10 días de vencer (Aviso anticipado)'}.</span>
+                    <span>📅 {alerts.diezDiasCount} {alerts.diezDiasCount === 1 ? 'producto vence en ≤ 10 días (Aviso anticipado)' : 'productos vencen en ≤ 10 días (Aviso anticipado)'}.</span>
                   </div>
                 )}
               </div>
             </div>
             <div className="text-[10px] text-slate-400 dark:text-slate-400 mt-4 italic font-medium">
-              Avisos automáticos a 10 días, 7 días y 1 día antes del vencimiento.
+              Conteo acumulativo de productos que vencen en ese número de días hacia abajo hasta vencidos.
             </div>
           </div>
         ) : (
           <div className="bg-green-50 dark:bg-green-950/20 p-6 rounded-3xl border border-green-100 dark:border-green-900/30 flex flex-col justify-center items-center text-center">
             <CheckCircle className="w-10 h-10 text-green-500 mb-2" />
             <h4 className="font-bold text-sm text-green-800 dark:text-green-400">¡Todo al día!</h4>
-            <p className="text-xs text-green-650 dark:text-green-450 mt-1 max-w-xs">No hay productos vencidos ni con alertas de carga a 10 días, 7 días o 1 día.</p>
+            <p className="text-xs text-green-650 dark:text-green-450 mt-1 max-w-xs">No hay productos vencidos ni con alertas en los próximos 10 días.</p>
           </div>
         )}
 
@@ -377,7 +371,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
         {/* Vencidos Card */}
         <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between">
-          <span className="text-xs text-slate-400 dark:text-slate-400 font-bold uppercase tracking-wider">Vencidos</span>
+          <span className="text-xs text-red-600 dark:text-red-400 font-bold uppercase tracking-wider">Vencidos</span>
           <div className="flex items-baseline gap-2 mt-2">
             <span className="text-2xl font-black text-red-600 dark:text-red-500">{stats.vencidos}</span>
             <span className="text-xs text-slate-400">un.</span>
@@ -389,7 +383,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
 
         {/* Vencen Hoy Card */}
         <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between">
-          <span className="text-xs text-slate-400 dark:text-slate-400 font-bold uppercase tracking-wider">Vencen Hoy</span>
+          <span className="text-xs text-yellow-600 dark:text-yellow-400 font-bold uppercase tracking-wider">Vencen Hoy</span>
           <div className="flex items-baseline gap-2 mt-2">
             <span className="text-2xl font-black text-yellow-600 dark:text-yellow-500">{stats.venceHoy}</span>
             <span className="text-xs text-slate-400">un.</span>
@@ -399,21 +393,33 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
           </div>
         </div>
 
-        {/* 1 Día (Mañana) Card */}
+        {/* ≤ 1 Día (Mañana) Card */}
         <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-orange-200 dark:border-orange-500/30 shadow-sm flex flex-col justify-between">
-          <span className="text-xs text-orange-600 dark:text-orange-400 font-bold uppercase tracking-wider">A 1 Día (Mañana)</span>
+          <span className="text-xs text-orange-600 dark:text-orange-400 font-bold uppercase tracking-wider">≤ 1 Día (Mañana)</span>
           <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-2xl font-black text-orange-500 dark:text-orange-400">{alerts.mananaCount}</span>
+            <span className="text-2xl font-black text-orange-500 dark:text-orange-400">{stats.venceManana}</span>
             <span className="text-xs text-slate-400">un.</span>
           </div>
           <div className="w-full bg-orange-100 dark:bg-orange-500/10 h-1.5 rounded-full mt-3 overflow-hidden">
-            <div className="bg-orange-500 h-full" style={{ width: `${stats.total > 0 ? (alerts.mananaCount / stats.total) * 100 : 0}%` }} />
+            <div className="bg-orange-500 h-full" style={{ width: `${stats.total > 0 ? (stats.venceManana / stats.total) * 100 : 0}%` }} />
           </div>
         </div>
 
-        {/* 7 Días Card */}
+        {/* ≤ 3 Días Card */}
+        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-amber-200 dark:border-amber-500/30 shadow-sm flex flex-col justify-between">
+          <span className="text-xs text-amber-600 dark:text-amber-400 font-bold uppercase tracking-wider">≤ 3 Días (Crítico)</span>
+          <div className="flex items-baseline gap-2 mt-2">
+            <span className="text-2xl font-black text-amber-600 dark:text-amber-400">{stats.vence3Dias}</span>
+            <span className="text-xs text-slate-400">un.</span>
+          </div>
+          <div className="w-full bg-amber-100 dark:bg-amber-500/10 h-1.5 rounded-full mt-3 overflow-hidden">
+            <div className="bg-amber-500 h-full" style={{ width: `${stats.total > 0 ? (stats.vence3Dias / stats.total) * 100 : 0}%` }} />
+          </div>
+        </div>
+
+        {/* ≤ 7 Días Card */}
         <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-blue-200 dark:border-blue-500/30 shadow-sm flex flex-col justify-between">
-          <span className="text-xs text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wider">A 7 Días (Carga)</span>
+          <span className="text-xs text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wider">≤ 7 Días (Carga)</span>
           <div className="flex items-baseline gap-2 mt-2">
             <span className="text-2xl font-black text-blue-600 dark:text-blue-400">{stats.vence7Dias}</span>
             <span className="text-xs text-slate-400">un.</span>
@@ -423,27 +429,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
           </div>
         </div>
 
-        {/* 10 Días Card */}
+        {/* ≤ 10 Días Card */}
         <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-purple-200 dark:border-purple-500/30 shadow-sm flex flex-col justify-between">
-          <span className="text-xs text-purple-600 dark:text-purple-400 font-bold uppercase tracking-wider">A 10 Días (Aviso)</span>
+          <span className="text-xs text-purple-600 dark:text-purple-400 font-bold uppercase tracking-wider">≤ 10 Días (Aviso)</span>
           <div className="flex items-baseline gap-2 mt-2">
             <span className="text-2xl font-black text-purple-600 dark:text-purple-400">{stats.vence10Dias}</span>
             <span className="text-xs text-slate-400">un.</span>
           </div>
           <div className="w-full bg-purple-100 dark:bg-purple-500/10 h-1.5 rounded-full mt-3 overflow-hidden">
             <div className="bg-purple-600 h-full" style={{ width: `${stats.total > 0 ? (stats.vence10Dias / stats.total) * 100 : 0}%` }} />
-          </div>
-        </div>
-
-        {/* Vigentes Card */}
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between">
-          <span className="text-xs text-slate-400 dark:text-slate-400 font-bold uppercase tracking-wider">Vigentes</span>
-          <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-2xl font-black text-green-600 dark:text-green-500">{stats.vigentes}</span>
-            <span className="text-xs text-slate-400">un.</span>
-          </div>
-          <div className="w-full bg-green-100 dark:bg-green-500/10 h-1.5 rounded-full mt-3 overflow-hidden">
-            <div className="bg-green-500 h-full" style={{ width: `${stats.total > 0 ? (stats.vigentes / stats.total) * 100 : 0}%` }} />
           </div>
         </div>
 
@@ -562,19 +556,34 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
                         <span className="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 font-bold px-2 py-0.5 rounded">
                           {product.location}
                         </span>
-                        {dateDiff === 10 && (
-                          <span className="text-[10px] bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 font-extrabold px-2 py-0.5 rounded border border-purple-200 dark:border-purple-500/20">
-                            📅 10 días (Aviso)
+                        {dateDiff < 0 && (
+                          <span className="text-[10px] bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 font-extrabold px-2 py-0.5 rounded border border-red-200 dark:border-red-500/20 animate-pulse">
+                            🔴 Vencido ({Math.abs(dateDiff)}d)
                           </span>
                         )}
-                        {dateDiff === 7 && (
-                          <span className="text-[10px] bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 font-extrabold px-2 py-0.5 rounded border border-blue-200 dark:border-blue-500/20">
-                            📅 7 días (Cargar)
+                        {dateDiff === 0 && (
+                          <span className="text-[10px] bg-yellow-50 dark:bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 font-extrabold px-2 py-0.5 rounded border border-yellow-200 dark:border-yellow-500/20">
+                            🟡 Vence Hoy
                           </span>
                         )}
                         {dateDiff === 1 && (
                           <span className="text-[10px] bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 font-extrabold px-2 py-0.5 rounded border border-orange-200 dark:border-orange-500/20 animate-pulse">
-                            🟠 1 día (Cargar)
+                            🟠 Vence Mañana (1d)
+                          </span>
+                        )}
+                        {dateDiff >= 2 && dateDiff <= 3 && (
+                          <span className="text-[10px] bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 font-extrabold px-2 py-0.5 rounded border border-amber-200 dark:border-amber-500/20">
+                            🟠 Vence en {dateDiff} días
+                          </span>
+                        )}
+                        {dateDiff >= 4 && dateDiff <= 7 && (
+                          <span className="text-[10px] bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 font-extrabold px-2 py-0.5 rounded border border-blue-200 dark:border-blue-500/20">
+                            📅 {dateDiff} días (Cargar)
+                          </span>
+                        )}
+                        {dateDiff >= 8 && dateDiff <= 10 && (
+                          <span className="text-[10px] bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 font-extrabold px-2 py-0.5 rounded border border-purple-200 dark:border-purple-500/20">
+                            📅 {dateDiff} días (Aviso)
                           </span>
                         )}
                         {product.unit === 'kg' || product.weight !== undefined ? (

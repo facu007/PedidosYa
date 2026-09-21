@@ -6,6 +6,7 @@ import { useAudio } from '../hooks/useAudio';
 import { useNotifications } from '../hooks/useNotifications';
 import { dbService } from '../services/db';
 import { SECTORS, getSectorConfig, formatSectorLabel } from '../utils/sectors';
+import { exportProductsToExcel, parseProductsFromExcel } from '../services/excel';
 import { 
   Settings as SettingsIcon, 
   Volume2, 
@@ -24,12 +25,13 @@ import {
   Eye,
   EyeOff,
   Bell,
-  Layers
+  Layers,
+  FileSpreadsheet
 } from 'lucide-react';
 
 export const Settings: React.FC = () => {
   const { user: currentUser, users, createUser, updateUser, deleteUser } = useAuth();
-  const { config, saveConfig, auditLogs, products, refreshData } = useApp();
+  const { config, saveConfig, auditLogs, products, refreshData, reintegrateFromExcel } = useApp();
   const { permission, requestPermission, sendLocalNotification } = useNotifications();
   const { playSuccess, playError } = useAudio();
   const isAdmin = currentUser?.role === 'admin';
@@ -114,7 +116,50 @@ export const Settings: React.FC = () => {
     }
   };
 
-  // Backup data
+  // Excel Full Backup
+  const handleExportExcelBackup = () => {
+    try {
+      exportProductsToExcel(products);
+      playSuccess();
+    } catch {
+      playError();
+      alert('Error al generar la copia de seguridad en Excel.');
+    }
+  };
+
+  // Excel Reintegration / Restore
+  const handleRestoreExcelFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setRestoreMessage(null);
+      const parsed = await parseProductsFromExcel(file);
+      if (parsed.length === 0) {
+        throw new Error('No se encontraron registros de productos válidos en el archivo Excel.');
+      }
+
+      const replaceAll = window.confirm(
+        `Se encontraron ${parsed.length} productos en el Excel.\n\n¿Deseas REEMPLAZAR toda la base de datos con este archivo?\n• Aceptar: Reemplazar todo\n• Cancelar: Combinar/Reintegrar agregando al inventario actual`
+      );
+
+      const mode = replaceAll ? 'replace' : 'merge';
+      const result = await reintegrateFromExcel(parsed, mode);
+      
+      setRestoreMessage({
+        success: true,
+        message: `Excel reintegrado con éxito: ${result.imported} productos cargados (${mode === 'replace' ? 'Base de datos restaurada' : 'Datos combinados'}). Errores: ${result.errors}`,
+      });
+      playSuccess();
+    } catch (err: any) {
+      setRestoreMessage({ success: false, message: `Error al reintegrar Excel: ${err.message || err}` });
+      playError();
+    } finally {
+      e.target.value = ''; // Reset input
+    }
+  };
+
+  // JSON Backup data
   const handleBackup = () => {
     try {
       const backupData = {
@@ -138,7 +183,7 @@ export const Settings: React.FC = () => {
     }
   };
 
-  // Restore data
+  // JSON Restore data
   const handleRestoreFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -156,10 +201,10 @@ export const Settings: React.FC = () => {
         // Restore in DB
         await dbService.restoreData(backup.products, backup.config, backup.auditLogs);
         await refreshData();
-        setRestoreMessage({ success: true, message: 'Copia de seguridad restaurada correctamente.' });
+        setRestoreMessage({ success: true, message: 'Copia de seguridad JSON restaurada correctamente.' });
         playSuccess();
       } catch (err: any) {
-        setRestoreMessage({ success: false, message: `Error al restaurar: ${err.message || err}` });
+        setRestoreMessage({ success: false, message: `Error al restaurar JSON: ${err.message || err}` });
         playError();
       }
     };
@@ -531,7 +576,7 @@ export const Settings: React.FC = () => {
             <div className="bg-white dark:bg-slate-800 rounded-3xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
               <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-700 pb-3">
                 <Database className="w-5 h-5 text-[#FF1744]" />
-                <h3 className="font-extrabold text-sm text-black dark:text-white">Copia de Seguridad</h3>
+                <h3 className="font-extrabold text-sm text-black dark:text-white">Copia de Seguridad y Reintegración</h3>
               </div>
 
               {restoreMessage && (
@@ -545,30 +590,72 @@ export const Settings: React.FC = () => {
                 </div>
               )}
 
-              <div className="flex flex-col gap-2">
-                <button
-                  onClick={handleBackup}
-                  className="w-full py-3 bg-slate-100 text-slate-800 dark:bg-slate-750 dark:text-slate-200 dark:hover:bg-slate-700 hover:bg-slate-200 rounded-xl transition-all flex items-center justify-center gap-2 font-bold text-xs"
-                >
-                  <Download className="w-4 h-4 text-indigo-500" />
-                  <span>Descargar Backup JSON</span>
-                </button>
+              {/* Excel Backup & Restore Section */}
+              <div className="space-y-2 p-3.5 bg-emerald-50/50 dark:bg-emerald-500/5 rounded-2xl border border-emerald-200 dark:border-emerald-500/20">
+                <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-extrabold text-xs">
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                  <span>Respaldo y Reintegración Excel (.xlsx)</span>
+                </div>
+                <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                  Ideal para no perder datos ante actualizaciones o limpiezas de caché. Puedes descargar la planilla o reintegrar todos los datos desde tu Excel.
+                </p>
 
-                <div className="relative">
-                  <input
-                    type="file"
-                    id="restore-file"
-                    accept=".json"
-                    onChange={handleRestoreFile}
-                    className="hidden"
-                  />
-                  <label
-                    htmlFor="restore-file"
-                    className="w-full py-3 bg-slate-100 text-slate-800 dark:bg-slate-750 dark:text-slate-200 dark:hover:bg-slate-700 hover:bg-slate-200 rounded-xl transition-all flex items-center justify-center gap-2 font-bold text-xs cursor-pointer border border-dashed border-slate-300 dark:border-slate-600"
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                  <button
+                    onClick={handleExportExcelBackup}
+                    className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition-all flex items-center justify-center gap-1.5 font-bold text-xs shadow-sm cursor-pointer"
                   >
-                    <Upload className="w-4 h-4 text-emerald-500" />
-                    <span>Restaurar Copia de Seguridad</span>
-                  </label>
+                    <Download className="w-4 h-4" />
+                    <span>Exportar Excel (.xlsx)</span>
+                  </button>
+
+                  <div className="relative">
+                    <input
+                      type="file"
+                      id="restore-excel-file"
+                      accept=".xlsx,.xls"
+                      onChange={handleRestoreExcelFile}
+                      className="hidden"
+                    />
+                    <label
+                      htmlFor="restore-excel-file"
+                      className="w-full py-2.5 px-3 bg-white dark:bg-slate-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-slate-650 rounded-xl transition-all flex items-center justify-center gap-1.5 font-bold text-xs cursor-pointer border border-emerald-300 dark:border-emerald-600 shadow-sm"
+                    >
+                      <Upload className="w-4 h-4 text-emerald-500" />
+                      <span>Reintegrar desde Excel</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* JSON Backup & Restore Section */}
+              <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-700">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Copia de Seguridad JSON (Sistema)</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    onClick={handleBackup}
+                    className="w-full py-2.5 px-3 bg-slate-100 text-slate-800 dark:bg-slate-750 dark:text-slate-200 dark:hover:bg-slate-700 hover:bg-slate-200 rounded-xl transition-all flex items-center justify-center gap-2 font-bold text-xs cursor-pointer"
+                  >
+                    <Download className="w-4 h-4 text-indigo-500" />
+                    <span>Backup JSON</span>
+                  </button>
+
+                  <div className="relative">
+                    <input
+                      type="file"
+                      id="restore-file"
+                      accept=".json"
+                      onChange={handleRestoreFile}
+                      className="hidden"
+                    />
+                    <label
+                      htmlFor="restore-file"
+                      className="w-full py-2.5 px-3 bg-slate-100 text-slate-800 dark:bg-slate-750 dark:text-slate-200 dark:hover:bg-slate-700 hover:bg-slate-200 rounded-xl transition-all flex items-center justify-center gap-2 font-bold text-xs cursor-pointer border border-dashed border-slate-300 dark:border-slate-600"
+                    >
+                      <Upload className="w-4 h-4 text-slate-500" />
+                      <span>Restaurar JSON</span>
+                    </label>
+                  </div>
                 </div>
               </div>
             </div>

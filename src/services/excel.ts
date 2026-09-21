@@ -2,8 +2,9 @@ import * as XLSX from 'xlsx';
 import type { Product } from './db';
 
 export const exportProductsToExcel = (products: Product[], locationFilterName?: string) => {
-  // Map products to a user-friendly format for Excel
+  // Map products to a complete, user-friendly and restore-compatible format for Excel
   const dataToExport = products.map((p) => ({
+    'ID': p.id,
     'Código de Barras': p.code,
     'Sector': p.sector || 'snack',
     'Categoría': p.category || 'general',
@@ -12,16 +13,17 @@ export const exportProductsToExcel = (products: Product[], locationFilterName?: 
     'Cantidad (Piezas/Unidades)': p.quantity ?? 1,
     'Peso (Kg)': p.weight !== undefined ? p.weight : '',
     'Costo / Precio ($)': p.costPrice !== undefined ? p.costPrice : '',
-    'Fecha de Registro': new Date(p.addedDate).toLocaleDateString(),
-    'Fecha de Vencimiento': new Date(p.expiryDate + 'T00:00:00').toLocaleDateString(),
-    'Registrado Por': p.addedBy,
+    'Fecha de Vencimiento': p.expiryDate, // YYYY-MM-DD
+    'Fecha de Registro': p.addedDate ? p.addedDate.slice(0, 10) : new Date().toISOString().slice(0, 10),
+    'Registrado Por': p.addedBy || 'sistema',
     'Estado': p.isDiscarded ? 'Descartado' : mapStatusToSpanish(p.status),
+    'Verificado': p.isChecked ? 'Sí' : 'No',
     'Observaciones': p.observations || '',
   }));
 
   const worksheet = XLSX.utils.json_to_sheet(dataToExport);
   const workbook = XLSX.utils.book_new();
-  const sheetName = locationFilterName ? `Ubicación ${locationFilterName}`.slice(0, 31) : 'Historial de Productos';
+  const sheetName = locationFilterName ? `Ubicación ${locationFilterName}`.slice(0, 31) : 'Respaldo Productos';
   XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
   // Auto-fit column widths
@@ -40,7 +42,7 @@ export const exportProductsToExcel = (products: Product[], locationFilterName?: 
   // Generate Excel file and trigger download
   const dateStr = new Date().toISOString().slice(0, 10);
   const locSuffix = locationFilterName ? `_${locationFilterName.replace(/[^a-zA-Z0-9]/g, '_')}` : '';
-  XLSX.writeFile(workbook, `vencimientos_pedidosya${locSuffix}_${dateStr}.xlsx`);
+  XLSX.writeFile(workbook, `respaldo_pedidosya${locSuffix}_${dateStr}.xlsx`);
 };
 
 export const parseProductsFromExcel = (file: File): Promise<Partial<Product>[]> => {
@@ -65,24 +67,41 @@ export const parseProductsFromExcel = (file: File): Promise<Partial<Product>[]> 
         // Map and validate rows
         const parsedProducts: Partial<Product>[] = rawRows.map((row) => {
           // Find fields regardless of slight variations in header names
-          const codeVal = row['Código de Barras'] || row['Código (Últimos 5 números)'] || row['Código'] || row['codigo'] || row['Code'] || '';
+          const idVal = row['ID'] || row['id'] || row['Id'] || row['ID Único'] || '';
+          const codeVal = row['Código de Barras'] || row['Código (Últimos 5 números)'] || row['Código'] || row['codigo'] || row['Code'] || row['Codigo'] || '';
           const sectorVal = row['Sector'] || row['sector'] || '';
           const categoryVal = row['Categoría'] || row['categoría'] || row['categoria'] || row['Category'] || 'general';
-          const locationVal = row['Ubicación'] || row['ubicacion'] || row['Location'] || '';
-          let expiryVal = row['Fecha de Vencimiento'] || row['Vencimiento'] || row['vencimiento'] || row['Expiry Date'] || '';
-          const obsVal = row['Observaciones'] || row['observaciones'] || row['Notes'] || '';
+          const locationVal = row['Ubicación'] || row['ubicacion'] || row['Location'] || row['Ubicacion'] || '';
+          const expiryVal = row['Fecha de Vencimiento'] || row['Vencimiento'] || row['vencimiento'] || row['Expiry Date'] || row['Fecha Vencimiento'] || '';
+          const addedDateVal = row['Fecha de Registro'] || row['Fecha de Carga'] || row['Fecha Registro'] || row['addedDate'] || '';
+          const addedByVal = row['Registrado Por'] || row['Usuario'] || row['addedBy'] || '';
+          const obsVal = row['Observaciones'] || row['observaciones'] || row['Notes'] || row['Notas'] || '';
           const unitVal = row['Unidad'] || row['unidad'] || row['Unit'] || '';
           const qtyVal = row['Cantidad (Piezas/Unidades)'] ?? row['Cantidad'] ?? row['cantidad'] ?? row['Quantity'] ?? 1;
           const weightVal = row['Peso (Kg)'] ?? row['Peso'] ?? row['peso'] ?? row['Weight'];
           const costVal = row['Costo / Precio ($)'] ?? row['Costo'] ?? row['costo'] ?? row['Precio'] ?? row['Cost'];
+          const isCheckedVal = row['Verificado'] ?? row['Checklist'] ?? row['isChecked'];
 
           // Format code string
           const code = codeVal.toString().trim();
 
           const rawSector = sectorVal.toString().trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-          const sector = ['snack', 'kiosco', 'desayuno', 'almacen', 'galletas'].includes(rawSector)
-            ? rawSector
-            : (rawSector.includes('kios') ? 'kiosco' : rawSector.includes('desay') ? 'desayuno' : rawSector.includes('alma') ? 'almacen' : rawSector.includes('gall') ? 'galletas' : 'snack');
+          let sector: Product['sector'] = 'snack';
+          if (['snack', 'kiosco', 'desayuno', 'almacen', 'galletas', 'heladeras', 'freezers'].includes(rawSector)) {
+            sector = rawSector as Product['sector'];
+          } else if (rawSector.includes('helad')) {
+            sector = 'heladeras';
+          } else if (rawSector.includes('freez')) {
+            sector = 'freezers';
+          } else if (rawSector.includes('kios')) {
+            sector = 'kiosco';
+          } else if (rawSector.includes('desay')) {
+            sector = 'desayuno';
+          } else if (rawSector.includes('alma')) {
+            sector = 'almacen';
+          } else if (rawSector.includes('gall')) {
+            sector = 'galletas';
+          }
           
           const rawCat = categoryVal.toString().trim().toLowerCase();
           const category = ['cárnicos', 'embutidos', 'lácteos', 'vegetales', 'general'].includes(rawCat)
@@ -91,7 +110,7 @@ export const parseProductsFromExcel = (file: File): Promise<Partial<Product>[]> 
           
           const unit: Product['unit'] = unitVal.toString().trim().toLowerCase() === 'kg' 
             || (category === 'cárnicos' && unitVal.toString().trim().toLowerCase() !== 'unidades') 
-            || weightVal !== undefined && weightVal !== '' ? 'kg' : 'unidades';
+            || (weightVal !== undefined && weightVal !== '') ? 'kg' : 'unidades';
 
           const parseOptionalNumber = (value: unknown): number | undefined => {
             if (value === undefined || value === null || value === '') return undefined;
@@ -107,32 +126,55 @@ export const parseProductsFromExcel = (file: File): Promise<Partial<Product>[]> 
           let expiryDate = '';
           if (typeof expiryVal === 'number') {
             // Excel base date is 1899-12-30
-            const date = new Date((expiryVal - 25569) * 86400 * 1000);
-            expiryDate = date.toISOString().slice(0, 10);
+            const date = new Date(Math.round((expiryVal - 25569) * 86400 * 1000));
+            const y = date.getUTCFullYear();
+            const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+            const d = String(date.getUTCDate()).padStart(2, '0');
+            expiryDate = `${y}-${m}-${d}`;
           } else if (expiryVal) {
-            // String date: check if it's DD/MM/YYYY or YYYY-MM-DD
-            const parts = expiryVal.toString().split(/[/-]/);
-            if (parts.length === 3) {
-              if (parts[0].length === 4) {
-                // YYYY-MM-DD
-                expiryDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
-              } else {
-                // DD/MM/YYYY
-                expiryDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+            const strVal = expiryVal.toString().trim();
+            // Handle ISO format YYYY-MM-DD
+            if (/^\d{4}-\d{2}-\d{2}/.test(strVal)) {
+              expiryDate = strVal.slice(0, 10);
+            } else {
+              const parts = strVal.split(/[/-]/);
+              if (parts.length === 3) {
+                if (parts[0].length === 4) {
+                  // YYYY-MM-DD
+                  expiryDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+                } else if (parts[2].length === 4) {
+                  // DD/MM/YYYY
+                  expiryDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                }
               }
             }
           }
 
+          // Format added date
+          let addedDate = new Date().toISOString();
+          if (addedDateVal) {
+            const strAdded = addedDateVal.toString().trim();
+            if (/^\d{4}-\d{2}-\d{2}/.test(strAdded)) {
+              addedDate = `${strAdded.slice(0, 10)}T12:00:00.000Z`;
+            }
+          }
+
+          const isChecked = isCheckedVal === 'No' || isCheckedVal === false || isCheckedVal === 'false' ? false : true;
+
           return {
+            id: idVal ? idVal.toString().trim() : undefined,
             code,
             sector,
             category,
-            location: locationVal.toString().trim(),
+            location: locationVal.toString().trim() || 'Heladera 1',
             expiryDate,
+            addedDate,
+            addedBy: addedByVal.toString().trim() || undefined,
             unit,
             weight,
             quantity,
             costPrice,
+            isChecked,
             observations: obsVal.toString().trim(),
           };
         }).filter(p => p.code && p.location && p.expiryDate); // Must have core fields
@@ -163,3 +205,4 @@ const mapStatusToSpanish = (status: string): string => {
     default: return status;
   }
 };
+

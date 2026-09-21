@@ -162,11 +162,11 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
       case 'vence_2_dias':
         return <span className="text-orange-500/80 font-bold text-xs">🟠 En 2 días</span>;
       case 'vence_3_dias':
-        return <span className="text-orange-500/80 font-bold text-xs">🟠 En 3 días</span>;
+        return <span className="text-orange-500/80 font-bold text-xs">🟠 En ≤ 3 días</span>;
       case 'vence_7_dias':
-        return <span className="text-blue-600 dark:text-blue-400 font-extrabold text-xs">📅 Vence en 7 días (Cargar)</span>;
+        return <span className="text-blue-600 dark:text-blue-400 font-extrabold text-xs">📅 En ≤ 7 días (Cargar)</span>;
       case 'vence_10_dias':
-        return <span className="text-purple-600 dark:text-purple-400 font-extrabold text-xs">📅 Vence en 10 días (Aviso)</span>;
+        return <span className="text-purple-600 dark:text-purple-400 font-extrabold text-xs">📅 En ≤ 10 días (Aviso)</span>;
       case 'proximo':
         return <span className="text-orange-550 font-extrabold text-xs animate-pulse">🟠 Próximo a Vencer</span>;
       case 'vigente':

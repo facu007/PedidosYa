@@ -11,8 +11,9 @@ export interface Product {
   addedDate: string; // ISO string
   addedBy: string; // User who added it
   observations?: string;
-  status: 'vigente' | 'vence_hoy' | 'vence_manana' | 'vence_2_dias' | 'vence_3_dias' | 'vence_7_dias' | 'vence_10_dias' | 'vencido' | 'descartado' | 'proximo';
+  status: 'vigente' | 'vence_hoy' | 'vence_manana' | 'vence_2_dias' | 'vence_3_dias' | 'vence_7_dias' | 'vence_10_dias' | 'vencido' | 'descartado' | 'proximo' | 'vendido';
   isDiscarded: boolean;
+  isSold?: boolean;
   isChecked?: boolean; // Checklist verification status
   checkedAt?: string; // Timestamp when verified
   checkedBy?: string; // User who verified
@@ -23,13 +24,14 @@ export interface Product {
   unit?: 'unidades' | 'kg';
   weight?: number;
   costPrice?: number;
+  loadCount?: number;
 }
 
 export interface AuditLog {
   id: string;
   productId: string;
   productCode: string;
-  action: 'create' | 'update' | 'delete' | 'discard';
+  action: 'create' | 'update' | 'delete' | 'discard' | 'sold';
   user: string;
   timestamp: string;
   details?: string;
@@ -215,8 +217,8 @@ export const dbService = {
       user,
       timestamp: new Date().toISOString(),
       details: existing 
-        ? `Modificado de ${existing.location} (${existing.expiryDate}) a ${product.location} (${product.expiryDate})`
-        : `Creado en ${product.location} con fecha ${product.expiryDate}`,
+        ? `Modificado de ${existing.location} (${existing.expiryDate}) a ${product.location} (${product.expiryDate}) [Carga #${product.loadCount ?? 1}]`
+        : `Creado en ${product.location} con fecha ${product.expiryDate} [Carga #${product.loadCount ?? 1}]`,
     };
     await tx.objectStore('audit_logs').put(auditLog);
     await tx.done;
@@ -246,6 +248,64 @@ export const dbService = {
     };
     await tx.objectStore('audit_logs').put(auditLog);
     await tx.done;
+  },
+
+  async markProductAsSold(id: string, user: string): Promise<void> {
+    const db = await initDB();
+    const product = await db.get('products', id);
+    if (!product) return;
+
+    product.isDiscarded = true;
+    product.isSold = true;
+    product.status = 'vendido';
+    product.quantity = 0;
+    product.lastUpdated = new Date().toISOString();
+    const soldNote = `Se vendieron todas las unidades por ${user}`;
+    product.observations = product.observations ? `${product.observations} | ${soldNote}` : soldNote;
+
+    const tx = db.transaction(['products', 'audit_logs'], 'readwrite');
+    await tx.objectStore('products').put(product);
+
+    // Audit log
+    const auditLog: AuditLog = {
+      id: crypto.randomUUID(),
+      productId: product.id,
+      productCode: product.code,
+      action: 'sold',
+      user,
+      timestamp: new Date().toISOString(),
+      details: `Se vendieron todas las unidades del producto en su ubicación ${product.location}`,
+    };
+    await tx.objectStore('audit_logs').put(auditLog);
+    await tx.done;
+  },
+
+  async incrementProductLoadCount(id: string, user: string, newCount?: number): Promise<number> {
+    const db = await initDB();
+    const product = await db.get('products', id);
+    if (!product) return 1;
+
+    const current = product.loadCount ?? 1;
+    const updated = newCount !== undefined ? Math.max(1, newCount) : current + 1;
+    product.loadCount = updated;
+    product.lastUpdated = new Date().toISOString();
+
+    const tx = db.transaction(['products', 'audit_logs'], 'readwrite');
+    await tx.objectStore('products').put(product);
+
+    // Audit log
+    const auditLog: AuditLog = {
+      id: crypto.randomUUID(),
+      productId: product.id,
+      productCode: product.code,
+      action: 'update',
+      user,
+      timestamp: new Date().toISOString(),
+      details: `Carga del vencimiento marcada #${updated} por ${user}`,
+    };
+    await tx.objectStore('audit_logs').put(auditLog);
+    await tx.done;
+    return updated;
   },
 
   async deleteProduct(id: string, user: string): Promise<void> {

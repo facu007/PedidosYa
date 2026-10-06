@@ -114,7 +114,7 @@ export const printProductLabel = (product: Product) => {
         </div>
 
         <div class="footer">
-          Cargado el ${addedFormatted} por ${product.addedBy}
+          Cargado el ${addedFormatted} por ${product.addedBy} • Carga #${product.loadCount ?? 1}
         </div>
       </div>
       <script>

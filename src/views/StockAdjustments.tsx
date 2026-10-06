@@ -121,6 +121,7 @@ export const StockAdjustments: React.FC = () => {
         quantity: isWeightBased ? selectedProduct.quantity ?? 1 : newAmount,
         unit: selectedProduct.unit,
         weight: isWeightBased ? newAmount : selectedProduct.weight,
+        loadCount: selectedProduct.loadCount ?? 1,
         observations: selectedProduct.observations 
           ? `${selectedProduct.observations} | ${obsText}`
           : obsText,
@@ -289,6 +290,9 @@ export const StockAdjustments: React.FC = () => {
                     <span className="font-bold text-sm text-slate-900 dark:text-white">#{p.code}</span>
                     <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
                       {p.category || 'general'}
+                    </span>
+                    <span className="bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400 px-2 py-0.5 rounded text-[10px] font-black border border-indigo-200 dark:border-indigo-500/20">
+                      📥 {(p.loadCount ?? 1) === 1 ? '1 carga' : `${p.loadCount} cargas`}
                     </span>
                   </div>
                   

@@ -15,6 +15,7 @@ export const exportProductsToExcel = (products: Product[], locationFilterName?: 
     'Costo / Precio ($)': p.costPrice !== undefined ? p.costPrice : '',
     'Fecha de Vencimiento': p.expiryDate, // YYYY-MM-DD
     'Fecha de Registro': p.addedDate ? p.addedDate.slice(0, 10) : new Date().toISOString().slice(0, 10),
+    'Veces Cargado': p.loadCount ?? 1,
     'Registrado Por': p.addedBy || 'sistema',
     'Estado': p.isDiscarded ? 'Descartado' : mapStatusToSpanish(p.status),
     'Verificado': p.isChecked ? 'Sí' : 'No',
@@ -81,6 +82,7 @@ export const parseProductsFromExcel = (file: File): Promise<Partial<Product>[]> 
           const weightVal = row['Peso (Kg)'] ?? row['Peso'] ?? row['peso'] ?? row['Weight'];
           const costVal = row['Costo / Precio ($)'] ?? row['Costo'] ?? row['costo'] ?? row['Precio'] ?? row['Cost'];
           const isCheckedVal = row['Verificado'] ?? row['Checklist'] ?? row['isChecked'];
+          const loadCountVal = row['Veces Cargado'] ?? row['Cargas'] ?? row['loadCount'];
 
           // Format code string
           const code = codeVal.toString().trim();
@@ -175,6 +177,7 @@ export const parseProductsFromExcel = (file: File): Promise<Partial<Product>[]> 
             quantity,
             costPrice,
             isChecked,
+            loadCount: parseOptionalNumber(loadCountVal) !== undefined ? Math.max(1, Math.trunc(parseOptionalNumber(loadCountVal)!)) : 1,
             observations: obsVal.toString().trim(),
           };
         }).filter(p => p.code && p.location && p.expiryDate); // Must have core fields

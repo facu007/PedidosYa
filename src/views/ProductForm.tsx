@@ -23,7 +23,9 @@ import {
   Scale,
   DollarSign,
   Layers,
-  RefreshCw
+  RefreshCw,
+  ShoppingBag,
+  RotateCcw
 } from 'lucide-react';
 
 interface ProductFormProps {
@@ -73,6 +75,7 @@ const productSchema = z.object({
   quantity: z.number().min(1, 'La cantidad debe ser al menos 1.'),
   weight: z.number().optional().or(z.nan()),
   costPrice: z.number().optional().or(z.nan()),
+  loadCount: z.number().optional().or(z.nan()),
 });
 
 type ProductFormValues = z.infer<typeof productSchema>;
@@ -86,7 +89,7 @@ interface ExtraBatch {
 
 export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, productIdToEdit }) => {
   const { user } = useAuth();
-  const { saveProduct, products, selectedSector } = useApp();
+  const { saveProduct, markProductAsSold, products, selectedSector } = useApp();
   const { playSuccess, playError } = useAudio();
   const [scannerMode, setScannerMode] = useState<'code' | 'location' | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -120,6 +123,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
       quantity: 1,
       weight: undefined,
       costPrice: undefined,
+      loadCount: 1,
     },
   });
 
@@ -128,10 +132,16 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
   const codeValue = watch('code');
   const currentLocation = watch('location');
   const currentQuantity = watch('quantity') ?? 1;
+  const currentLoadCount = watch('loadCount') ?? 1;
 
   const handleStepQuantity = (delta: number) => {
     const nextVal = Math.max(1, (typeof currentQuantity === 'number' && !isNaN(currentQuantity) ? currentQuantity : 1) + delta);
     setValue('quantity', nextVal);
+  };
+
+  const handleStepLoadCount = (delta: number) => {
+    const nextVal = Math.max(1, (typeof currentLoadCount === 'number' && !isNaN(currentLoadCount) ? currentLoadCount : 1) + delta);
+    setValue('loadCount', nextVal);
   };
 
   // Find all active batches for the current product code
@@ -157,12 +167,14 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
     setValue('quantity', prod.quantity ?? 1);
     setValue('weight', prod.weight);
     setValue('costPrice', prod.costPrice);
+    setValue('loadCount', prod.loadCount ?? 1);
   }, [setValue, defaultSector]);
 
   const handleStartNewBatch = () => {
     setActiveBatchIdToEdit(null);
     setValue('expiryDate', '');
     setValue('quantity', 1);
+    setValue('loadCount', 1);
   };
 
   const handleAddExtraBatch = () => {
@@ -185,6 +197,18 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
     setExtraBatches((prev) =>
       prev.map((b) => (b.id === id ? { ...b, [field]: value } : b))
     );
+  };
+
+  const handleMarkSoldFromModal = async () => {
+    if (!activeBatchIdToEdit) return;
+    const currentProd = products.find(p => p.id === activeBatchIdToEdit);
+    if (!currentProd) return;
+
+    if (window.confirm(`¿Confirmar que se vendieron TODAS las unidades del lote/producto #${currentProd.code}?`)) {
+      await markProductAsSold(activeBatchIdToEdit);
+      playSuccess();
+      onClose();
+    }
   };
 
   // Auto switch unit to 'kg' when selecting 'cárnicos' if creating a new product
@@ -220,6 +244,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
         quantity: 1,
         weight: undefined,
         costPrice: undefined,
+        loadCount: 1,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -234,6 +259,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
       const weightVal = values.unit === 'kg' && values.weight !== undefined && values.weight !== null && !isNaN(values.weight) ? values.weight : undefined;
       const costVal = values.costPrice !== undefined && values.costPrice !== null && !isNaN(values.costPrice) ? values.costPrice : undefined;
       const quantityVal = values.quantity && !isNaN(values.quantity) && values.quantity >= 1 ? values.quantity : 1;
+      const loadCountVal = typeof values.loadCount === 'number' && !isNaN(values.loadCount) && values.loadCount >= 1 ? values.loadCount : 1;
 
       const addedDateObj = values.addedDate ? new Date(values.addedDate.includes('T') ? values.addedDate : values.addedDate + 'T12:00:00') : new Date();
       const addedDateISO = isNaN(addedDateObj.getTime()) ? new Date().toISOString() : addedDateObj.toISOString();
@@ -254,6 +280,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
         unit: values.unit,
         weight: weightVal,
         costPrice: costVal,
+        loadCount: loadCountVal,
       });
 
       // Save additional batches if user added extra dates in this submission
@@ -420,6 +447,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
                             <span className="text-slate-400 text-[10px]">
                               📍 {batch.location}
                             </span>
+                            <span className="bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 font-bold px-1.5 py-0.2 rounded text-[10px] border border-indigo-200 dark:border-indigo-500/20">
+                              📥 {batch.loadCount ?? 1} {(batch.loadCount ?? 1) === 1 ? 'carga' : 'cargas'}
+                            </span>
                           </div>
 
                           <div className="flex items-center gap-1">
@@ -441,6 +471,21 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
                       );
                     })}
                   </div>
+                </div>
+              )}
+
+              {/* Informative message for load confirmation counter */}
+              {activeBatchIdToEdit && (
+                <div className="p-3 bg-indigo-50/70 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 rounded-2xl text-xs text-indigo-900 dark:text-indigo-300 font-medium flex items-center justify-between gap-2 mt-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm">📥</span>
+                    <span>
+                      Cargas confirmadas: <strong className="font-extrabold">{products.find(p => p.id === activeBatchIdToEdit)?.loadCount ?? 1}</strong>
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-extrabold text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-500/20 px-2 py-0.5 rounded-lg">
+                    Confirmarás la carga #{ (products.find(p => p.id === activeBatchIdToEdit)?.loadCount ?? 1) + 1 }
+                  </span>
                 </div>
               )}
             </div>
@@ -789,6 +834,53 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
               />
             </div>
 
+            {/* Veces que fue cargado el vencimiento (Load Count) */}
+            <div className="p-4 bg-indigo-50/70 dark:bg-indigo-500/10 rounded-2xl border border-indigo-200/80 dark:border-indigo-500/20 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-indigo-950 dark:text-indigo-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <RotateCcw className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <span>Veces cargado el vencimiento</span>
+                </label>
+                <span className="text-[10px] font-black text-indigo-700 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-500/20 px-2 py-0.5 rounded-md">
+                  Carga #{currentLoadCount}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                Lleva la cuenta de cuántas veces se confirmó o cargó este vencimiento.
+              </p>
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => handleStepLoadCount(-1)}
+                  className="px-3 py-2 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl font-extrabold text-sm transition-all border border-slate-200 dark:border-slate-600 cursor-pointer shadow-2xs"
+                  title="Restar 1 carga"
+                >
+                  <Minus className="w-4 h-4" />
+                </button>
+                <input
+                  type="number"
+                  min={1}
+                  {...register('loadCount', { valueAsNumber: true })}
+                  className="w-24 px-3 py-2 rounded-xl border border-indigo-200 dark:border-indigo-500/30 bg-white dark:bg-slate-800 text-black dark:text-white text-center focus:outline-none focus:ring-2 focus:ring-indigo-500/25 transition-all text-sm font-black"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleStepLoadCount(1)}
+                  className="px-3 py-2 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl font-extrabold text-sm transition-all border border-slate-200 dark:border-slate-600 cursor-pointer shadow-2xs"
+                  title="Sumar 1 carga"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setValue('loadCount', (currentLoadCount || 1) + 1)}
+                  className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all cursor-pointer shadow-2xs flex items-center gap-1 ml-auto"
+                >
+                  <span>+1 Carga</span>
+                </button>
+              </div>
+            </div>
+
             {/* Observations (optional) */}
             <div>
               <label className="block text-xs font-bold text-slate-500 dark:text-slate-450 uppercase tracking-wider mb-2 flex items-center gap-1">
@@ -802,6 +894,29 @@ export const ProductForm: React.FC<ProductFormProps> = ({ isOpen, onClose, produ
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 text-black dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#FF1744]/25 focus:border-[#FF1744] transition-all text-sm font-medium"
               />
             </div>
+
+            {/* Option to mark all units as sold if editing existing batch */}
+            {isEditingExisting && (
+              <div className="p-3.5 bg-emerald-50/80 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-2xl flex items-center justify-between gap-3 animate-fade-in">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl shrink-0">
+                    <ShoppingBag className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h5 className="text-xs font-bold text-emerald-950 dark:text-emerald-300">¿Se vendió todo el stock?</h5>
+                    <p className="text-[11px] text-emerald-750 dark:text-emerald-450">Marcar que se vendieron todas las unidades de este lote.</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleMarkSoldFromModal}
+                  className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-all shadow-xs shrink-0 cursor-pointer flex items-center gap-1"
+                >
+                  <ShoppingBag className="w-3.5 h-3.5" />
+                  <span>Vendido</span>
+                </button>
+              </div>
+            )}
 
             {/* Action Footer inside Form */}
             <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-700">

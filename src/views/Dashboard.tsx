@@ -16,7 +16,8 @@ import {
   Printer,
   Bell,
   ListChecks,
-  RotateCcw
+  RotateCcw,
+  ShoppingBag
 } from 'lucide-react';
 import { formatDistanceToNow, differenceInCalendarDays, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -40,6 +41,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
     getDashboardStats, 
     getAlerts, 
     discardProduct,
+    markProductAsSold,
+    incrementProductLoadCount,
     setFilterStatusType,
     toggleProductCheck,
     markAllChecks,
@@ -595,6 +598,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
                             📦 {product.quantity} un.
                           </span>
                         ) : null}
+                        {/* Load count badge (Veces cargado) */}
+                        <button 
+                          type="button"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            const next = (product.loadCount ?? 1) + 1;
+                            await incrementProductLoadCount(product.id, next);
+                            playSuccess();
+                          }}
+                          className="text-[10px] bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 font-extrabold px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-500/20 flex items-center gap-1 shadow-2xs transition-all cursor-pointer group/load"
+                          title={`Este producto ha sido cargado ${product.loadCount ?? 1} ${(product.loadCount ?? 1) === 1 ? 'vez' : 'veces'}. Clic para marcar +1 carga`}
+                        >
+                          <span>📥</span>
+                          <span>{(product.loadCount ?? 1) === 1 ? '1ra carga' : `${product.loadCount} cargas`}</span>
+                          <span className="text-[9px] bg-indigo-200/60 dark:bg-indigo-500/30 px-1 rounded text-indigo-800 dark:text-indigo-200 opacity-60 group-hover/load:opacity-100 font-black">+1</span>
+                        </button>
+
                         {/* Checklist Verification Badge */}
                         <button
                           onClick={() => handleToggleCheck(product.id)}
@@ -624,7 +644,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
                           </>
                         )}
                         <span>•</span>
-                        <span>Cargado por: {product.addedBy}</span>
+                        <span className="text-indigo-600 dark:text-indigo-400 font-semibold">
+                          Cargado {(product.loadCount ?? 1) === 1 ? '1 vez' : `${product.loadCount} veces`} por {product.addedBy}
+                        </span>
                         {product.checkedBy && (
                           <>
                             <span>•</span>
@@ -657,7 +679,38 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView, onEditProduct }) 
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                      {/* Quick +1 Load Count Button */}
+                      <button
+                        onClick={async () => {
+                          const next = (product.loadCount ?? 1) + 1;
+                          await incrementProductLoadCount(product.id, next);
+                          playSuccess();
+                        }}
+                        className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg transition-all cursor-pointer flex items-center gap-1 text-xs font-bold"
+                        title={`Marcar otra carga del vencimiento (actual: ${product.loadCount ?? 1})`}
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                        <span className="hidden xl:inline text-[11px]">+1 Carga</span>
+                      </button>
+
+                      {/* Mark Sold Out Button */}
+                      <button
+                        onClick={async () => {
+                          const isWeight = product.unit === 'kg' || product.weight !== undefined;
+                          const amountStr = isWeight ? `${product.weight ?? product.quantity} Kg` : `${product.quantity} un.`;
+                          if (window.confirm(`¿Confirmar que se vendieron TODAS las unidades (${amountStr}) del producto #${product.code}?`)) {
+                            await markProductAsSold(product.id);
+                            playSuccess();
+                          }
+                        }}
+                        className="p-2 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 rounded-lg transition-all cursor-pointer flex items-center gap-1 text-xs font-bold"
+                        title="Marcar que se vendieron todas las unidades (Agotado/Vendido)"
+                      >
+                        <ShoppingBag className="w-4 h-4" />
+                        <span className="hidden xl:inline text-[11px]">Vendido</span>
+                      </button>
+
                       {/* Print Label Button */}
                       <button
                         onClick={() => printProductLabel(product)}

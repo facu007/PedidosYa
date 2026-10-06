@@ -9,6 +9,8 @@ export interface AppContextType {
   refreshData: (showSpinner?: boolean) => Promise<void>;
   saveProduct: (productData: Omit<Product, 'status' | 'isDiscarded' | 'addedBy'> & { addedDate?: string }) => Promise<void>;
   discardProduct: (id: string) => Promise<void>;
+  markProductAsSold: (id: string) => Promise<void>;
+  incrementProductLoadCount: (id: string, newCount?: number) => Promise<number>;
   deleteProduct: (id: string) => Promise<void>;
   saveConfig: (newConfig: AppConfig) => Promise<void>;
   importFromExcel: (parsedProducts: Partial<Product>[]) => Promise<{ imported: number; errors: number }>;

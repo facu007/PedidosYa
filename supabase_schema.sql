@@ -22,6 +22,7 @@ create table if not exists public.products (
     unit text default 'unidades',
     weight numeric,
     "costPrice" numeric,
+    "loadCount" integer not null default 1,
     "isChecked" boolean not null default true,
     "checkedAt" text,
     "checkedBy" text
@@ -31,6 +32,7 @@ create table if not exists public.products (
 alter table public.products add column if not exists unit text default 'unidades';
 alter table public.products add column if not exists weight numeric;
 alter table public.products add column if not exists "costPrice" numeric;
+alter table public.products add column if not exists "loadCount" integer default 1;
 alter table public.products add column if not exists "isChecked" boolean default true;
 alter table public.products add column if not exists "checkedAt" text;
 alter table public.products add column if not exists "checkedBy" text;

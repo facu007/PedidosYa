@@ -117,7 +117,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const updatedProducts = dbProducts.map((p) => {
         const qty = p.quantity !== undefined && p.quantity !== null ? p.quantity : 1;
         if (p.isDiscarded) {
-          return { ...p, quantity: qty, status: 'descartado' as const };
+          const status = (p.isSold || p.status === 'vendido') ? ('vendido' as const) : ('descartado' as const);
+          return { ...p, quantity: qty, status };
         }
         return {
           ...p,
@@ -231,6 +232,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
+    // Compute loadCount: if explicitly provided, use it. Otherwise, increment if existing or initialize to 1.
+    const loadCount = productData.loadCount !== undefined
+      ? productData.loadCount
+      : (existingProduct ? (existingProduct.loadCount ?? 1) + 1 : 1);
+
     const fullProduct: Product = {
       ...productData,
       sector: assignedSector,
@@ -245,6 +251,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       checkedAt: productData.checkedAt || (existingProduct ? existingProduct.checkedAt : new Date().toISOString()),
       checkedBy: productData.checkedBy || (existingProduct ? existingProduct.checkedBy : operator),
       lastUpdated: new Date().toISOString(),
+      loadCount,
     };
 
     await dbService.saveProduct(fullProduct, operator);
@@ -271,6 +278,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await dbService.discardProduct(id, operator);
     await refreshData(false);
     triggerSync().catch((err) => console.warn('Background sync warning:', err));
+  };
+
+  const markProductAsSold = async (id: string) => {
+    const operator = user?.username || 'sistema';
+    await dbService.markProductAsSold(id, operator);
+    await refreshData(false);
+    triggerSync().catch((err) => console.warn('Background sync warning:', err));
+  };
+
+  const incrementProductLoadCount = async (id: string, newCount?: number): Promise<number> => {
+    const operator = user?.username || 'sistema';
+    const updated = await dbService.incrementProductLoadCount(id, operator, newCount);
+    await refreshData(false);
+    triggerSync().catch((err) => console.warn('Background sync warning:', err));
+    return updated;
   };
 
   const deleteProduct = async (id: string) => {
@@ -329,6 +351,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           checkedAt: now,
           checkedBy: operator,
           lastUpdated: now,
+          loadCount: p.loadCount ?? 1,
         };
         await productStore.put(fullProduct);
         imported++;
@@ -462,6 +485,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         refreshData,
         saveProduct,
         discardProduct,
+        markProductAsSold,
+        incrementProductLoadCount,
         deleteProduct,
         toggleProductCheck,
         markAllChecks,

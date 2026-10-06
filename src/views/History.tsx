@@ -20,7 +20,8 @@ import {
   Circle,
   ListChecks,
   X,
-  Printer
+  Printer,
+  ShoppingBag
 } from 'lucide-react';
 import { printProductLabel } from '../utils/labelPrinter';
 import { getSectorConfig, formatSectorLabel } from '../utils/sectors';
@@ -42,6 +43,8 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
     filterChecklistType,
     setFilterChecklistType,
     deleteProduct,
+    markProductAsSold,
+    incrementProductLoadCount,
     toggleProductCheck,
     importFromExcel
   } = useApp();
@@ -51,7 +54,7 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
 
   // Sorting & Exact Location Filter
   const [exactLocationFilter, setExactLocationFilter] = useState<string>('todos');
-  const [sortField, setSortField] = useState<'code' | 'expiryDate' | 'addedDate'>('expiryDate');
+  const [sortField, setSortField] = useState<'code' | 'expiryDate' | 'addedDate' | 'loadCount'>('expiryDate');
   const [sortAsc, setSortAsc] = useState<boolean>(true);
 
   // Delete Confirmation Modal State
@@ -138,11 +141,13 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
       comparison = a.expiryDate.localeCompare(b.expiryDate);
     } else if (sortField === 'addedDate') {
       comparison = a.addedDate.localeCompare(b.addedDate);
+    } else if (sortField === 'loadCount') {
+      comparison = (a.loadCount ?? 1) - (b.loadCount ?? 1);
     }
     return sortAsc ? comparison : -comparison;
   });
 
-  const toggleSort = (field: 'code' | 'expiryDate' | 'addedDate') => {
+  const toggleSort = (field: 'code' | 'expiryDate' | 'addedDate' | 'loadCount') => {
     if (sortField === field) {
       setSortAsc(!sortAsc);
     } else {
@@ -171,6 +176,8 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
         return <span className="text-orange-550 font-extrabold text-xs animate-pulse">🟠 Próximo a Vencer</span>;
       case 'vigente':
         return <span className="text-green-600 dark:text-green-400 font-semibold text-xs">🟢 Vigente</span>;
+      case 'vendido':
+        return <span className="text-emerald-600 dark:text-emerald-400 font-extrabold text-xs bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-500/20">🛒 Vendido</span>;
       case 'descartado':
         return <span className="text-slate-400 font-bold text-xs">⚫ Descartado</span>;
       default:
@@ -425,6 +432,12 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
                         <ArrowUpDown className="w-3.5 h-3.5" />
                       </div>
                     </th>
+                    <th onClick={() => toggleSort('loadCount')} className="p-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 select-none">
+                      <div className="flex items-center gap-1.5">
+                        <span>Cargas</span>
+                        <ArrowUpDown className="w-3.5 h-3.5" />
+                      </div>
+                    </th>
                     <th onClick={() => toggleSort('expiryDate')} className="p-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 select-none">
                       <div className="flex items-center gap-1.5">
                         <span>Fecha de Vencimiento</span>
@@ -488,6 +501,21 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
                         <td className="p-4 text-xs font-medium text-slate-400 dark:text-slate-450">
                           {new Date(p.addedDate).toLocaleDateString()}
                         </td>
+                        <td className="p-4">
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const next = (p.loadCount ?? 1) + 1;
+                              await incrementProductLoadCount(p.id, next);
+                              playSuccess();
+                            }}
+                            className="bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 px-2 py-0.5 rounded text-xs font-black border border-indigo-200 dark:border-indigo-500/20 whitespace-nowrap cursor-pointer transition-all flex items-center gap-1 group/hload"
+                            title={`Confirmado y cargado ${p.loadCount ?? 1} ${(p.loadCount ?? 1) === 1 ? 'vez' : 'veces'}. Clic para +1 carga`}
+                          >
+                            <span>📥 {(p.loadCount ?? 1) === 1 ? '1 vez' : `${p.loadCount} veces`}</span>
+                            <span className="text-[9px] bg-indigo-200/60 dark:bg-indigo-500/30 px-1 rounded text-indigo-800 dark:text-indigo-200 opacity-60 group-hover/hload:opacity-100 font-black">+1</span>
+                          </button>
+                        </td>
                         <td className="p-4 text-xs font-bold">
                           {new Date(p.expiryDate + 'T00:00:00').toLocaleDateString()}
                         </td>
@@ -515,6 +543,22 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
                         </td>
                         <td className="p-4 text-right">
                           <div className="flex justify-end gap-1">
+                            {!p.isDiscarded && p.status !== 'vendido' && (
+                              <button
+                                onClick={async () => {
+                                  const isWeight = p.unit === 'kg' || p.weight !== undefined;
+                                  const amountStr = isWeight ? `${p.weight ?? p.quantity} Kg` : `${p.quantity} un.`;
+                                  if (window.confirm(`¿Confirmar que se vendieron TODAS las unidades (${amountStr}) del producto #${p.code}?`)) {
+                                    await markProductAsSold(p.id);
+                                    playSuccess();
+                                  }
+                                }}
+                                className="p-2 text-slate-450 hover:text-emerald-600 dark:hover:text-emerald-400 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors cursor-pointer"
+                                title="Marcar que se vendieron todas las unidades"
+                              >
+                                <ShoppingBag className="w-4 h-4" />
+                              </button>
+                            )}
                             <button
                               onClick={() => printProductLabel(p)}
                               className="p-2 text-slate-450 hover:text-slate-800 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
@@ -572,9 +616,24 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
                         {getSectorBadge(p.sector)}
                         {getCategoryBadge(p.category)}
                       </div>
-                      <span className="bg-slate-100 dark:bg-slate-750 px-2.5 py-0.5 rounded text-xs font-bold text-slate-650 dark:text-slate-350">
-                        {p.location}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const next = (p.loadCount ?? 1) + 1;
+                            await incrementProductLoadCount(p.id, next);
+                            playSuccess();
+                          }}
+                          className="bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 px-2 py-0.5 rounded text-[10px] font-black border border-indigo-200 dark:border-indigo-500/20 cursor-pointer flex items-center gap-1"
+                          title="Clic para +1 carga"
+                        >
+                          <span>📥 {(p.loadCount ?? 1) === 1 ? '1 carga' : `${p.loadCount} cargas`}</span>
+                          <span className="text-[9px] bg-indigo-200/60 dark:bg-indigo-500/30 px-1 rounded text-indigo-800 dark:text-indigo-200 font-black">+1</span>
+                        </button>
+                        <span className="bg-slate-100 dark:bg-slate-750 px-2.5 py-0.5 rounded text-xs font-bold text-slate-650 dark:text-slate-350">
+                          {p.location}
+                        </span>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-3 gap-2 text-xs text-slate-400 dark:text-slate-400 font-semibold">
@@ -615,7 +674,23 @@ export const History: React.FC<HistoryProps> = ({ onEditProduct }) => {
                         </p>
                       </div>
                       
-                      <div className="flex gap-1">
+                      <div className="flex gap-1 items-center">
+                        {!p.isDiscarded && p.status !== 'vendido' && (
+                          <button
+                            onClick={async () => {
+                              const isWeight = p.unit === 'kg' || p.weight !== undefined;
+                              const amountStr = isWeight ? `${p.weight ?? p.quantity} Kg` : `${p.quantity} un.`;
+                              if (window.confirm(`¿Confirmar que se vendieron TODAS las unidades (${amountStr}) del producto #${p.code}?`)) {
+                                await markProductAsSold(p.id);
+                                playSuccess();
+                              }
+                            }}
+                            className="p-2 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 rounded-lg bg-slate-50 dark:bg-slate-700/50 cursor-pointer"
+                            title="Marcar Vendido"
+                          >
+                            <ShoppingBag className="w-4 h-4" />
+                          </button>
+                        )}
                         <button
                           onClick={() => onEditProduct(p.id)}
                           className="p-2 text-slate-450 hover:text-slate-800 dark:hover:text-white rounded-lg bg-slate-50 dark:bg-slate-700/50 cursor-pointer"
